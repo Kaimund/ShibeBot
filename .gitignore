@@ -1,0 +1,17 @@
+# Installed dependencies
+/node_modules
+
+# Compiled source code
+/dist
+
+# Database
+/db
+
+# Folder Attributes
+.DS_Store
+
+# Environment Configuration
+*.env
+
+# User Personas
+public/img/personas/*

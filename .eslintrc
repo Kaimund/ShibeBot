@@ -1,0 +1,24 @@
+{
+    "parser": "@typescript-eslint/parser",
+    "extends": ["plugin:@typescript-eslint/recommended"],
+    "parserOptions": {
+      "ecmaVersion": 2018,
+      "sourceType": "module"
+    },
+    "rules": {
+      "no-var": ["warn"],
+      "no-unreachable": ["warn"],
+      "semi": ["warn", "always"],
+      "quotes": ["warn", "single"],
+      "prefer-const": ["warn"],
+      "prefer-promise-reject-errors": ["error"],
+      "@typescript-eslint/explicit-function-return-type": "off",
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-var-requires": ["error"],
+      "@typescript-eslint/no-unused-vars": ["warn"],
+      "@typescript-eslint/no-use-before-define": "off",
+      "@typescript-eslint/consistent-type-assertions": ["warn"],
+      "@typescript-eslint/no-namespace": "off",
+      "@typescript-eslint/camelcase": "off"
+    }
+  }

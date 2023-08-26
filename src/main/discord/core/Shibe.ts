@@ -19,7 +19,7 @@ export default class Shibe {
     // This object states whether Shibe started successfully
     startupStatus: StatusFlag;
 
-    // This is ran when a Shibe process is spawned.
+    // This is run when a Shibe process is spawned.
     constructor() {
         this.startupStatus = StatusFlag.Pending;
         AppLog.trace('Starting a Shibe process...');
@@ -35,7 +35,7 @@ export default class Shibe {
         new EventManager(this); // Also create an event manager for scheduling
     }
 
-    // This is ran when a Shibe process is ordered to start.
+    // This is run when a Shibe process is ordered to start.
     start() {
         // Check to make sure the database folders exist
         if(!fs.existsSync('./db')) {
@@ -68,10 +68,10 @@ export default class Shibe {
                 this.client.destroy();
                 process.exit(1);
             }
-        } if(!fs.existsSync('./public/img/personas')){
+        } if(!fs.existsSync('./db/personas')){
             AppLog.info('Could not find the persona image directory. Creating a new one...');
             try {
-                fs.mkdirSync('./public/img/personas');
+                fs.mkdirSync('./db/personas');
             } catch (err) {
                 AppLog.fatal('Could not create the required persona image directory. ' + err);
                 AppLog.fatal('Shibe cannot continue. Exiting...');

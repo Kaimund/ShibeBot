@@ -20,7 +20,7 @@ dotenv.config();
  * Load modules.
  */
 import './discord/discord'; // Discord
-import api from './api/routes/index'; // Shibe API
+import api from './api/api'; // Shibe API
 import http from 'http';
 import debug from 'debug';
 import { AppLog } from './helpers/AppLog';
@@ -41,14 +41,14 @@ const port = normalizePort(process.env.PORT || '3000');
 /**
  * Create HTTP server.
  */
-//const server = http.createServer(api);
+const server = http.createServer(api);
 
 /**
  * Listen on provided port, on all network interfaces.
  */
-//server.listen(port);
-//server.on('error', onError);
-//server.on('listening', onListening);
+server.listen(port);
+server.on('error', onError);
+server.on('listening', onListening);
 
 /**
  * Normalize a port into a number, string, or false.
@@ -97,10 +97,10 @@ function onError(error) {
 /**
  * Event listener for HTTP server "listening" event.
  */
-/*function onListening() {
+function onListening() {
     const addr = server.address();
     const bind = typeof addr === 'string'
         ? 'pipe ' + addr
         : 'port ' + addr.port;
     debug('Listening on ' + bind);
-}*/
+}

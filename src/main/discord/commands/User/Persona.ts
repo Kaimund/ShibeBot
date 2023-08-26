@@ -38,7 +38,7 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         if (userConfig.persona.species) personaEmbed.addFields({name: 'Species', value: userConfig.persona.species});
 
         // Get the image for the persona embed
-        if (fs.existsSync(`./public/img/personas/${targetUser.id}.png`)) {
+        if (fs.existsSync(`./db/personas/${targetUser.id}.png`)) {
             process.env.BOT_DASHBOARD_URL.endsWith('/') ? personaEmbed.setThumbnail(`${process.env.BOT_DASHBOARD_URL}img/personas/${targetUser.id}.png`) : personaEmbed.setThumbnail(`${process.env.BOT_DASHBOARD_URL}/img/personas/${targetUser.id}.png`);
         }
 

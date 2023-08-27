@@ -6,11 +6,14 @@
 
 import Discord from 'discord.js';
 import { Command } from '../../core/CommandManager';
+import { getSystemConfig } from '../../../helpers/SystemDirectory';
 
 // Main Function
 async function run (interaction: Discord.ChatInputCommandInteraction): Promise<void> {
     return new Promise(async (resolve) => {
-        (process.env.BOT_INVITE_URL) ? interaction.reply({content: 'Here\'s an invite link to add me to your server: ' + process.env.BOT_INVITE_URL, ephemeral: true}).catch(() => {}) : interaction.reply({content: ':information_source: This bot instance has not been made public.', ephemeral: true}).catch(() => {});
+        const systemConfig = getSystemConfig();
+
+        (systemConfig.webInfo.inviteURL) ? interaction.reply({content: 'Here\'s an invite link to add me to your server: ' + systemConfig.webInfo.inviteURL, ephemeral: true}).catch(() => {}) : interaction.reply({content: ':information_source: This bot instance has not been made public.', ephemeral: true}).catch(() => {});
         return resolve();
     });
 }

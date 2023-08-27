@@ -1,1 +1,13 @@
-{"systemAuthorizedUsers":[],"bannedServers":[],"bannedUsers":[]}
+{
+    "apiPort": 12918,
+    "webInfo": {
+        "clientRedirect": "http://127.0.0.1:12918/login",
+        "dashboardURL": "http://127.0.0.1:12918/",
+        "inviteURL": "https://kaimund.com/shibe/invite"
+    },
+    "access": {
+        "systemAuthorizedUsers":[],
+        "bannedServers":[],
+        "bannedUsers":[]
+    }
+}

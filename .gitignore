@@ -15,3 +15,6 @@
 
 # User Personas
 public/img/personas/*
+
+# Configuration files
+config.json

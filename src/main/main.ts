@@ -17,13 +17,11 @@ import dotenv from 'dotenv';
 dotenv.config(); 
 
 /**
- * Load modules.
+ * Load initial modules
  */
-import './discord/discord'; // Discord
-import api from './api/api'; // Shibe API
-import http from 'http';
-import debug from 'debug';
+import fs from 'fs';
 import { AppLog } from './helpers/AppLog';
+import { getSystemConfig } from './helpers/SystemDirectory';
 
 /**
  * Handle unhandled promise rejections - this should prevent the app from crashing if there is a bug
@@ -33,10 +31,41 @@ process.on('unhandledRejection', (error) => {
 });
 
 /**
+ * The system configuration file
+ */
+const systemConfig = getSystemConfig();
+
+// Check to see if the super secret .env file which holds bot tokens exists. If it doesn't, create one. 
+if (!fs.existsSync('./.env')) {
+    AppLog.info('Could not find the Shibe environment variables file. Creating a new one...');
+
+    try {
+        fs.writeFileSync('./.env', 'BOT_TOKEN=');
+    } catch (err) {
+        AppLog.fatal('Cannot create new environment variables file: ' + err);
+        AppLog.fatal('This configuration file is REQUIRED for Shibe to run, and Shibe cannot continue starting without it. Shibe will now exit.');
+        process.exit(1);
+    }
+}
+
+// If the bot token is not set, stop the process and prompt the user to set it.
+if (!process.env.BOT_TOKEN) {
+    AppLog.fatal('You have not set your bot token yet. Please open the .env file and paste your bot token in the BOT_TOKEN line, then start Shibe again.');
+    process.exit(1);
+}
+
+/**
+ * Import the rest of the modules
+ */
+import './discord/discord'; // Discord
+import api from './api/api'; // Shibe API
+import http from 'http';
+import debug from 'debug';
+
+/**
  * Get port from environment and store in Express.
  */
-const port = normalizePort(process.env.PORT || '3000');
-//api.set('port', port);
+const port = normalizePort(systemConfig.apiPort);
 
 /**
  * Create HTTP server.

@@ -131,23 +131,28 @@ export default class Shibe {
                         AppLog.error(new Error('Failed to read a command file: ' + err), 'Reading Command File');
                     }
                 });
-                
-                // Send slash commands to the Discord API
-                const rest = new Discord.REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
-                rest.put(Discord.Routes.applicationCommands(process.env.CLIENT_ID), { body: commandData });
-
             });
         } catch (error) {
-            AppLog.error(new Error('Failed to register slash commands with Discord: ' + error.message), 'Loading Slash Commands');
+            AppLog.error(new Error('Failed to load bot commands. ' + error.message), 'Loading Commands');
         }
 
         // Sign on to Discord
         AppLog.log('Signing on to Discord...');
-        this.client.login(process.env.BOT_TOKEN).then(() => AppLog.log('Successfully logged in to Discord.')).catch(() => {
-            AppLog.fatal('Failed to log in. Your token may be invalid, or there may be a service outage.');
+        this.client.login(process.env.BOT_TOKEN).then(() => {
+            AppLog.log('Successfully logged in to Discord.');
+
+            // Send slash commands to the Discord API
+            const rest = new Discord.REST({ version: '10' }).setToken(process.env.BOT_TOKEN);
+            rest.put(Discord.Routes.applicationCommands(this.client.user.id), { body: commandData }).then(() => {
+                AppLog.log('Registered commands with the Discord API.');
+            }).catch((error) => {
+                AppLog.error(new Error('Failed to register commands with the Discord API. ' + error), 'Signing into Discord');
+            });
+        }).catch((error) => {
+            AppLog.fatal('Failed to log in. Your token may be invalid, or there may be a service outage. ' + error);
             this.client.destroy();
             this.startupStatus = StatusFlag.Failed;
-            return;
+            process.exit(1);
         });
 
         // Do post-startup stuff here

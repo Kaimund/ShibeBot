@@ -8,10 +8,13 @@ import Discord from 'discord.js';
 import fs from 'fs';
 import { Command } from '../../core/CommandManager';
 import { getUserConfig } from '../../../helpers/UserDirectory';
+import { getSystemConfig } from '../../../helpers/SystemDirectory';
 
 // Main Function
 async function run (interaction: Discord.ChatInputCommandInteraction): Promise<void> {
     return new Promise(async (resolve, reject) => {
+        // Get the system config
+        const systemConfig = getSystemConfig();
 
         // Get the user object
         const targetUser = interaction.options.getUser('user') ? interaction.options.getUser('user') : interaction.user ;
@@ -24,7 +27,7 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
 
         // Check if a persona exists and report back if not
         if (!userConfig.persona) {
-            const personaEditorURL = process.env.BOT_DASHBOARD_URL.endsWith('/') ? process.env.BOT_DASHBOARD_URL + 'user/persona/' : process.env.BOT_DASHBOARD_URL + '/user/persona/';
+            const personaEditorURL = systemConfig.webInfo.dashboardURL.endsWith('/') ? systemConfig.webInfo.dashboardURL + 'user/persona/' : systemConfig.webInfo.dashboardURL + '/user/persona/';
             (targetUser.id === interaction.user.id) ? interaction.reply({content: ':information_source: You do not have a persona. You can create one at: ' + personaEditorURL, ephemeral: true}).catch(() => {}) : interaction.reply({content: ':information_source: This user does not have a persona.', ephemeral: true}).catch(() => {});
             return resolve();
         }
@@ -39,7 +42,7 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
 
         // Get the image for the persona embed
         if (fs.existsSync(`./db/personas/${targetUser.id}.png`)) {
-            process.env.BOT_DASHBOARD_URL.endsWith('/') ? personaEmbed.setThumbnail(`${process.env.BOT_DASHBOARD_URL}img/personas/${targetUser.id}.png`) : personaEmbed.setThumbnail(`${process.env.BOT_DASHBOARD_URL}/img/personas/${targetUser.id}.png`);
+            systemConfig.webInfo.dashboardURL.endsWith('/') ? personaEmbed.setThumbnail(`${systemConfig.webInfo.dashboardURL}img/personas/${targetUser.id}.png`) : personaEmbed.setThumbnail(`${systemConfig.webInfo.dashboardURL}/img/personas/${targetUser.id}.png`);
         }
 
         // Reply with the embed

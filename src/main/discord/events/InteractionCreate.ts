@@ -37,14 +37,10 @@ export default async function interactionCreate(interaction: Discord.Interaction
     };
 
     // Import the System Configuration
-    const systemConfig = await getSystemConfig().catch((err) => {
-        AppLog.error(new Error(`Failed to get system config.\nReason: ${err}`), 'Processing a slash command');
-        interaction.reply({content: ':no_entry: Sorry, it looks like Shibe is having some issues right now. Please try again later. (The system config is corrupt)', ephemeral: true});
-    });
-    if (!systemConfig) return;
+    const systemConfig = getSystemConfig();
 
     // Check if the server is banned from using Shibe
-    if (systemConfig.bannedServers.includes(interaction.guild.id)) {
+    if (systemConfig.access.bannedServers.includes(interaction.guild.id)) {
         if (interaction.user.id !== interaction.client.user.id) await interaction.reply({content: ':octagonal_sign: This server is banned from using Shibe.', ephemeral: true}).catch(() => {});
         interaction.guild.leave();
         return;
@@ -88,7 +84,7 @@ export default async function interactionCreate(interaction: Discord.Interaction
         if (sendingTooQuickly(interaction)) return;
 
         // Check if the user is banned from Shibe
-        if (systemConfig.bannedUsers.includes(interaction.user.id)) {
+        if (systemConfig.access.bannedUsers.includes(interaction.user.id)) {
             interaction.reply({content: ':octagonal_sign: You are banned from using Shibe.', ephemeral: true}).catch(() => {});
             return;
         }

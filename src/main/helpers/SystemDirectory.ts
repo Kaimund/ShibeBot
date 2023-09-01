@@ -21,6 +21,12 @@ export function checkSystemDirectory() {
                 dashboardURL: 'http://localhost:12918/',
                 inviteURL: 'http://localhost:12918/invite'
             },
+            data: {
+                server: 'localhost',
+                database: 'shibe',
+                username: 'shibebot',
+                useEncryption: false
+            },
             access: {
                 systemAuthorizedUsers: [],
                 bannedServers: [],
@@ -52,6 +58,10 @@ export interface SystemConfig {
      */
     webInfo: SystemConfigWebInfo;
     /**
+     * Database configuration
+     */
+    data: SystemConfigDataInfo;
+    /**
      * Configuration for Shibe administrative access and restricted entities
      */
     access: SystemConfigAccess;
@@ -70,6 +80,25 @@ export interface SystemConfigWebInfo {
      * Invite link for adding Shibe to your own server
      */
     inviteURL: string;
+};
+
+export interface SystemConfigDataInfo {
+    /**
+     * The address of the server hosting the Shibe database
+     */
+    server: string;
+    /**
+     * The name of the database to use
+     */
+    database: string;
+    /**
+     * The username of the SQL server user to use
+     */
+    username: string;
+    /**
+     * Whether encryption should be used. This is REQUIRED for databases hosted in Microsoft Azure
+     */
+    useEncryption: boolean;
 };
 
 export interface SystemConfigAccess {
@@ -98,6 +127,11 @@ function checkSystemConfig(data: any): boolean {
     if (typeof data.webInfo.clientRedirect !== 'string') return false;
     if (typeof data.webInfo.dashboardURL !== 'string') return false;
     if (typeof data.webInfo.inviteURL !== 'string') return false;
+
+    if (typeof data.data.server !== 'string') return false;
+    if (typeof data.data.database !== 'string') return false;
+    if (typeof data.data.username !== 'string') return false;
+    if (typeof data.data.useEncryption !== 'boolean') return false;
 
     if (!(data.access.systemAuthorizedUsers instanceof Array)) return false;
     data.access.systemAuthorizedUsers.forEach(entry => {

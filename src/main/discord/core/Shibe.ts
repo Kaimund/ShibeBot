@@ -7,6 +7,7 @@
 import Discord, { IntentsBitField } from 'discord.js';
 import fs from 'fs';
 import glob from 'glob';
+import sql from '../../helpers/SQL';
 import { AppLog } from '../../helpers/AppLog';
 import EventManager from './EventManager';
 import CommandManager, { Command } from './CommandManager';
@@ -14,12 +15,19 @@ import ModerationTimer from '../schedules/ModerationTimer';
 
 export default class Shibe {
 
-    // This object stores the client which the bot uses to interface with Discord
+    /**
+     * This object stores the client which the bot uses to interface with Discord
+     */
     private client: Discord.Client;
-    // This object states whether Shibe started successfully
+
+    /**
+     * This object states whether Shibe started successfully
+     */
     startupStatus: StatusFlag;
 
-    // This is run when a Shibe process is spawned.
+    /**
+     * This is run when a Shibe process is spawned.
+     */
     constructor() {
         this.startupStatus = StatusFlag.Pending;
         AppLog.trace('Starting a Shibe process...');
@@ -140,6 +148,14 @@ export default class Shibe {
         AppLog.log('Signing on to Discord...');
         this.client.login(process.env.BOT_TOKEN).then(() => {
             AppLog.log('Successfully logged in to Discord.');
+
+            // Test the connection to the SQL server
+            AppLog.log('Testing connection to the Shibe SQL server...');
+            sql('SELECT 1').then(() => {
+                AppLog.log('Connection the Shibe SQL server is successful.');
+            }).catch((error) => {
+                AppLog.error(new Error('Connection to the Shibe SQL server FAILED! ' + error), 'Startup SQL test');
+            });
 
             // Send slash commands to the Discord API
             const rest = new Discord.REST({ version: '10' }).setToken(process.env.BOT_TOKEN);

@@ -40,12 +40,16 @@ if (!fs.existsSync('./.env')) {
     AppLog.info('Could not find the Shibe environment variables file. Creating a new one...');
 
     try {
-        fs.writeFileSync('./.env', 'BOT_TOKEN=');
+        fs.writeFileSync('./.env', 'BOT_TOKEN=\nDB_PASSWORD=');
     } catch (err) {
         AppLog.fatal('Cannot create new environment variables file: ' + err);
         AppLog.fatal('This configuration file is REQUIRED for Shibe to run, and Shibe cannot continue starting without it. Shibe will now exit.');
         process.exit(1);
     }
+}
+
+if (!process.env.DB_PASSWORD) {
+    AppLog.warning('You have not set a password for the Shibe database. Shibe will not be able to log in to the database without it. Please open the .env file and enter the password for your database user in the DB_PASSWORD line, then start Shibe again.', 'App Startup');
 }
 
 // If the bot token is not set, stop the process and prompt the user to set it.

@@ -5,6 +5,7 @@
 */ 
 
 import fs from 'fs';
+import yaml from 'js-yaml';
 import { AppLog } from './AppLog';
 
 /**
@@ -12,29 +13,10 @@ import { AppLog } from './AppLog';
  */
 export function checkSystemDirectory() {
     // System Configuration
-    if (!fs.existsSync('./config.json')) {
+    if (!fs.existsSync('./config.yml')) {
         AppLog.info('Could not find the system configuration file. Creating a new one...');
-        const defaultConfig: SystemConfig = {
-            apiPort: 12918,
-            webInfo: {
-                clientRedirect: 'http://localhost:12918/login',
-                dashboardURL: 'http://localhost:12918/',
-                inviteURL: 'http://localhost:12918/invite'
-            },
-            data: {
-                server: 'localhost',
-                database: 'shibe',
-                username: 'shibebot',
-                useEncryption: false
-            },
-            access: {
-                systemAuthorizedUsers: [],
-                bannedServers: [],
-                bannedUsers: []
-            }
-        };
         try {
-            fs.writeFileSync('./config.json', JSON.stringify(defaultConfig));
+            fs.copyFileSync('./src/main/lib/config.default.yml', './config.yml');
         } catch (err) {
             AppLog.fatal('Cannot create new system configuration file.\n' + err);
             AppLog.fatal('This file is REQUIRED for Shibe to work. Shibe will now exit.');
@@ -160,17 +142,17 @@ export function getSystemConfig(): SystemConfig {
 
     // Read the file
     try {
-        const data = fs.readFileSync('./config.json', 'utf8');
+        const configFile = fs.readFileSync('./config.yml', 'utf8');
+        const data = yaml.load(configFile);
         if (data) {
             // Try to parse
             try {
-                const parsedData: SystemConfig = JSON.parse(data);
-                if (!checkSystemConfig(parsedData)) {
+                if (!checkSystemConfig(data)) {
                     // System config is invalid. Report and exit. 
                     AppLog.fatal('Your system configuration file is invalid. Please check the file for errors, or delete the file to replace the configuration with the system default.');
                     process.exit(1);
                 }
-                return parsedData;
+                return data;
             } catch (error) {
                 AppLog.fatal('Your system configuration file is corrupt. Please check the file for errors, or delete the file to replace the configuration with the system default.\n' + error);
                 process.exit(1);

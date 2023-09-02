@@ -1,0 +1,43 @@
+# Shibe
+# A heccin bot for Discord
+# Copyright (C) 2023 Kaimund
+
+# API Port
+# Select which port the Shibe API should listen on
+apiPort: 12918
+
+# WEB INFO
+# Shibe will use the data below in its responses to prompt users on where to go in a web browser
+webInfo:
+  # The link to the web interface
+  dashboardURL: "http://localhost:12918/"
+  # The callback address for signing into the web interface
+  clientRedirect: "http://localhost:12918/login"
+  # The invite link so users can add Shibe to their own Discord servers
+  inviteURL: "http://localhost:12918/invite"
+
+# DATABASE CONNECTION
+# Provide parameters on where the Shibe database is located
+data: 
+  # The address of the database server here
+  server: "localhost"
+  # The name of the database holding the Shibe data
+  database: "shibe"
+  # The username to log into the database with
+  # You will need to type the password in the .env file on the DB_PASSWORD line
+  username: "shibe"
+  # Choose whether to use encryption. If the database is stored in Microsoft Azure, this is REQUIRED
+  useEncryption: false
+
+# ACCESS RIGHTS
+# Provide user IDs of users who have administrator access to Shibe, as well as banned users and servers
+# Add the IDs as STRINGS, for example: ["000000000000", "111111111111", "222222222222"]
+access:
+  # User IDs of users who have administrator-level access to the bot
+  systemAuthorizedUsers: []
+  # User IDs of users who are NOT ALLOWED to use Shibe
+  # Shibe will not process commands by these users and will notify them they are blacklisted from using Shibe
+  bannedUsers: []
+  # Server IDs of servers that are NOT ALLOWED to use Shibe
+  # Shibe will not process commands in these servers and will leave the server instead
+  bannedServers: []

@@ -17,4 +17,4 @@
 public/img/personas/*
 
 # Configuration files
-/config.json
+/config.yml

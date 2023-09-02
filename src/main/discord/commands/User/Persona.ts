@@ -6,27 +6,35 @@
 
 import Discord from 'discord.js';
 import fs from 'fs';
+import { AppLog } from '../../../helpers/AppLog';
 import { Command } from '../../core/CommandManager';
-import { getUserConfig } from '../../../helpers/UserDirectory';
+import { getUserPersona } from '../../../helpers/UserDirectory';
 import { getSystemConfig } from '../../../helpers/SystemDirectory';
 
 // Main Function
 async function run (interaction: Discord.ChatInputCommandInteraction): Promise<void> {
-    return new Promise(async (resolve, reject) => {
+    return new Promise(async (resolve) => {
         // Get the system config
         const systemConfig = getSystemConfig();
 
         // Get the user object
         const targetUser = interaction.options.getUser('user') ? interaction.options.getUser('user') : interaction.user ;
 
-        // Get the user configuration file
-        const userConfig = await getUserConfig(targetUser.id).catch((err) => {
-            reject(new Error(`Failed to get guild configuration for ${interaction.guild.name}\nReason: ${err}`));
+        // Get the user persona
+        let serivceUnavailable = false;
+        const persona = await getUserPersona(targetUser.id).catch(error => {
+            AppLog.error(error, 'Persona command');
+            serivceUnavailable = true;
         });
-        if (!userConfig) return;
+
+        // If the service is unavailable, report back to the user
+        if (serivceUnavailable) {
+            interaction.reply({content: ':warning: The Shibe data service is temporarily unavailable. Please try again later.', ephemeral: true}).catch(() => {});
+            return resolve();
+        }
 
         // Check if a persona exists and report back if not
-        if (!userConfig.persona) {
+        if (!persona) {
             const personaEditorURL = systemConfig.webInfo.dashboardURL.endsWith('/') ? systemConfig.webInfo.dashboardURL + 'user/persona/' : systemConfig.webInfo.dashboardURL + '/user/persona/';
             (targetUser.id === interaction.user.id) ? interaction.reply({content: ':information_source: You do not have a persona. You can create one at: ' + personaEditorURL, ephemeral: true}).catch(() => {}) : interaction.reply({content: ':information_source: This user does not have a persona.', ephemeral: true}).catch(() => {});
             return resolve();
@@ -35,10 +43,11 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         // Create the embed object
         const personaEmbed = new Discord.EmbedBuilder();
         personaEmbed.setAuthor({name: `${targetUser.tag}'s Persona`, iconURL: targetUser.avatarURL()});
-        personaEmbed.setTitle(userConfig.persona.name);
-        if (userConfig.persona.color) personaEmbed.setColor(userConfig.persona.color);
-        if (userConfig.persona.bio) personaEmbed.setDescription(userConfig.persona.bio);
-        if (userConfig.persona.species) personaEmbed.addFields({name: 'Species', value: userConfig.persona.species});
+        personaEmbed.setTitle(persona.personaName);
+        if (persona.personaColor) personaEmbed.setColor(persona.personaColor);
+        if (persona.personaBio) personaEmbed.setDescription(persona.personaBio);
+        if (persona.personaSpecies) personaEmbed.addFields({name: 'Species', value: persona.personaSpecies});
+        if (persona.personaPronouns) personaEmbed.addFields({name: 'Pronouns', value: persona.personaPronouns});
 
         // Get the image for the persona embed
         if (fs.existsSync(`./db/personas/${targetUser.id}.png`)) {

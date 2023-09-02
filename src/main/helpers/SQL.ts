@@ -28,7 +28,9 @@ export default function sql(query: string): Promise<Array<object>> {
             },
             options: {
                 encrypt: systemConfig.data.useEncryption,
-                database: systemConfig.data.database
+                database: systemConfig.data.database,
+                connectTimeout: 1500,
+                requestTimeout: 1500
             }
         };
 

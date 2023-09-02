@@ -66,16 +66,6 @@ export default class Shibe {
                 this.client.destroy();
                 process.exit(1);
             }
-        } if(!fs.existsSync('./db/users')){
-            AppLog.info('Could not find the root users directory. Creating a new one...');
-            try {
-                fs.mkdirSync('./db/users');
-            } catch (err) {
-                AppLog.fatal('Could not create the required root users directory. ' + err);
-                AppLog.fatal('Shibe cannot continue. Exiting...');
-                this.client.destroy();
-                process.exit(1);
-            }
         } if(!fs.existsSync('./db/personas')){
             AppLog.info('Could not find the persona image directory. Creating a new one...');
             try {

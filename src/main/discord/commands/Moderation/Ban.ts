@@ -4,10 +4,12 @@
     Copyright (C) 2023 Kaimund
 */
 
+import sql from '../../../lib/SQL';
 import Discord from 'discord.js';
-import fs from 'fs';
+import AppLog from '../../../lib/AppLog';
 import { Command } from '../../core/CommandManager';
-import { getModSchedule, getGuildConfig } from '../../../helpers/GuildDirectory';
+import { getUserConfig } from '../../../lib/UserDirectory';
+import { getGuildConfig } from '../../../lib/GuildDirectory';
 
 // Main Function
 async function run (interaction: Discord.ChatInputCommandInteraction): Promise<void> {
@@ -31,6 +33,12 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         // Reason
         const reason = interaction.options.getString('reason');
 
+        // Cannot find member
+        if (!targetMember) {
+            interaction.reply({content: ':information_source: Shibe cannot find the target member. If you know the user ID of the person you would like to ban, use the `/hackban` command instead.', ephemeral: true}).catch(() => {});
+            return resolve();
+        }
+
         // Bot has no permission
         if (!interaction.guild.members.me.permissions.has('BanMembers')) {
             interaction.reply({content: ':warning: Shibe does not have permission to ban members.', ephemeral: true}).catch(() => {});
@@ -47,46 +55,22 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
             interaction.reply({content: ':warning: Shibe cannot ban this member.', ephemeral: true}).catch(() => {});
             return resolve();
         }
-        
-        // Import ban database
-        const modSchedule = await getModSchedule(interaction.guild.id).catch((err) => {
-            return reject(new Error(`Failed to get ban database for ${interaction.guild.name} while trying to ban a user.\nReason: ${err}`));
-        });
-        if (!modSchedule) return;
-
-        // If an expiry has been set, add it to the moderation schedule
-        if (timeInMinutes) {
-            const expiry = Date.now() + timeInMinutes;
-
-            // Create JSON object
-            modSchedule.bans[targetMember.id] = {
-                username: targetMember.user.tag,
-                avatar: targetMember.avatarURL(),
-                time: expiry,
-                reason: reason
-            };
-
-            // Save back to file
-            try {
-                fs.writeFileSync(`./db/guilds/${interaction.guild.id}/moderation-schedule.json`, JSON.stringify(modSchedule, null, 4));
-            } catch (err) {
-                return reject(new Error(`Failed to write to ban database for ${interaction.guild.name} while trying to ban a user.\nReason: ${err}`));
-            }
-        }
 
         // Convert the time in minutes to a more friendly time description
         let timeText: string;
-        switch (timeInMinutes) {
-            case 1440: timeText = '1 day'; break;
-            case 4320: timeText = '3 days'; break;
-            case 10080: timeText = '7 days'; break;
-            case 20160: timeText = '14 days'; break;
-            case 43200: timeText = '30 days'; break;
-            case 86400: timeText = '60 days'; break;
-            case 129600: timeText = '90 days'; break;
-            case 259200: timeText = '180 days'; break;
-            case 525600: timeText = '1 year'; break;
-            default: timeText = timeInMinutes.toString() + ' minutes';
+        if (timeInMinutes) {
+            switch (timeInMinutes) {
+                case 1440: timeText = '1 day'; break;
+                case 4320: timeText = '3 days'; break;
+                case 10080: timeText = '7 days'; break;
+                case 20160: timeText = '14 days'; break;
+                case 43200: timeText = '30 days'; break;
+                case 86400: timeText = '60 days'; break;
+                case 129600: timeText = '90 days'; break;
+                case 259200: timeText = '180 days'; break;
+                case 525600: timeText = '1 year'; break;
+                default: timeText = timeInMinutes.toString() + ' minutes';
+            }
         }
 
         // Try to notify the member that they have been banned (only if they're already in the server)
@@ -108,9 +92,23 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         }
 
         // Report successful ban
-        timeInMinutes ? interaction.reply(`:white_check_mark: ${targetMember.user.tag} has been banned from the server for ${timeText}`).catch(() => {}) : interaction.reply(`:white_check_mark: ${targetMember.user.tag} has been banned from the server.`).catch(() => {});
+        timeInMinutes ? await interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} has been banned from the server for ${timeText}`, ephemeral: true}).catch(() => {}) : await interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} has been banned from the server.`, ephemeral: true}).catch(() => {});
 
-        // Try logging the incident
+        // Log the incident to the Shibe database
+        const eventID = Discord.SnowflakeUtil.generate();
+
+        // Create user data in the database if they do not exist
+        await getUserConfig(sourceMember.id).catch(() => {});
+        await getUserConfig(targetMember.id).catch(() => {});
+
+        // Log the event to the database
+        await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${interaction.guild.id}', '${targetMember.id}', '${sourceMember.id}', 'BAN', '${new Date().getTime()}', '${new Date().getTime() + (timeInMinutes * 60000)}', '${sql.sanitize(reason)}', 'ACTIVE')`).catch(async (error) => {
+            AppLog.error(error, 'Logging ban to database');
+            const reply = await interaction.fetchReply();
+            interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident to the Shibe database due to a temporary issue. This ban will not expire!').catch(() => {});
+        });
+
+        // Try logging the incident to the action channel
         if (guildConfig.actionChannel) {
 
             const reportEmbed = new Discord.EmbedBuilder()
@@ -118,14 +116,14 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
                 name: 'Ban', 
                 iconURL: interaction.user.avatarURL()
             })
-            .setThumbnail(targetMember.avatarURL())
+            .setThumbnail(targetMember.user.avatarURL())
             .setColor('#800000')
             .addFields(
                 {name: 'User', value: `<@${targetMember.id}> (${targetMember.user.tag})`},
                 {name: 'Moderator', value: `<@${interaction.user.id}> (${interaction.user.tag})`},
             )
             .setTimestamp()
-            .setFooter({text: `Target User ID: ${targetMember.id}`});
+            .setFooter({text: `Event ID: ${eventID}`});
             if (timeInMinutes) reportEmbed.addFields({name: 'Time', value: timeText});
             if (reason) reportEmbed.addFields({name: 'Reason', value: reason});
 

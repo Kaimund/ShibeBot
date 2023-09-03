@@ -20,8 +20,7 @@ dotenv.config();
  * Load initial modules
  */
 import fs from 'fs';
-import { AppLog } from './helpers/AppLog';
-import { getSystemConfig } from './helpers/SystemDirectory';
+import AppLog from './lib/AppLog';
 
 /**
  * Handle unhandled promise rejections - this should prevent the app from crashing if there is a bug
@@ -29,11 +28,6 @@ import { getSystemConfig } from './helpers/SystemDirectory';
 process.on('unhandledRejection', (error) => {
     AppLog.error(new Error('An unhandled promise rejection has occurred! This indicates a serious bug in the code. Please report this issue.\n' + error), 'Unhandled Promise Rejection');
 });
-
-/**
- * The system configuration file
- */
-const systemConfig = getSystemConfig();
 
 // Check to see if the super secret .env file which holds bot tokens exists. If it doesn't, create one. 
 if (!fs.existsSync('./.env')) {
@@ -59,81 +53,12 @@ if (!process.env.BOT_TOKEN) {
 }
 
 /**
- * Import the rest of the modules
+ * Import Discord bot stuff here
  */
-import './discord/discord'; // Discord
-import api from './api/api'; // Shibe API
-import http from 'http';
-import debug from 'debug';
+import { ShardingManager } from 'discord.js';
 
-/**
- * Get port from environment and store in Express.
- */
-const port = normalizePort(systemConfig.apiPort);
+const manager = new ShardingManager('./dist/main/discord/bot.js', { token: process.env.BOT_TOKEN });
 
-/**
- * Create HTTP server.
- */
-const server = http.createServer(api);
-
-/**
- * Listen on provided port, on all network interfaces.
- */
-server.listen(port);
-server.on('error', onError);
-server.on('listening', onListening);
-
-/**
- * Normalize a port into a number, string, or false.
- */
-function normalizePort(val) {
-  const port = parseInt(val, 10);
-
-  if (isNaN(port)) {
-    // named pipe
-    return val;
-  }
-
-  if (port >= 0) {
-    // port number
-    return port;
-  }
-
-  return false;
-}
-
-/**
- * Event listener for HTTP server "error" event.
- */
-function onError(error) {
-    if (error.syscall !== 'listen') {
-        throw error;
-    }
-
-    const bind = typeof port === 'string'
-        ? 'Pipe ' + port
-        : 'Port ' + port;
-
-    // handle specific listen errors with friendly messages
-    switch (error.code) {
-        case 'EACCES':
-            AppLog.fatal(bind + ' requires elevated privileges');
-            process.exit(1);
-        case 'EADDRINUSE':
-            AppLog.fatal(bind + ' is already in use');
-            process.exit(1);
-        default:
-            throw error;
-    }
-}
-
-/**
- * Event listener for HTTP server "listening" event.
- */
-function onListening() {
-    const addr = server.address();
-    const bind = typeof addr === 'string'
-        ? 'pipe ' + addr
-        : 'port ' + addr.port;
-    debug('Listening on ' + bind);
-}
+manager.spawn().catch(error => {
+    AppLog.error(error, 'Spawning a new shard');
+});

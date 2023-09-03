@@ -6,7 +6,7 @@
 
 import Discord from 'discord.js';
 import { Command } from '../../core/CommandManager';
-import { getSystemConfig } from '../../../helpers/SystemDirectory';
+import { getSystemConfig } from '../../../lib/SystemDirectory';
 
 // Main Function
 async function run (interaction: Discord.ChatInputCommandInteraction): Promise<void> {

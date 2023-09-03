@@ -7,11 +7,11 @@
 import Discord, { IntentsBitField } from 'discord.js';
 import fs from 'fs';
 import glob from 'glob';
-import sql from '../../helpers/SQL';
-import { AppLog } from '../../helpers/AppLog';
+import sql from '../../lib/SQL';
+import AppLog from '../../lib/AppLog';
 import EventManager from './EventManager';
 import CommandManager, { Command } from './CommandManager';
-import ModerationTimer from '../schedules/ModerationTimer';
+import ModerationTimer from '../lib/ModerationTimer';
 
 export default class Shibe {
 
@@ -141,7 +141,7 @@ export default class Shibe {
 
             // Test the connection to the SQL server
             AppLog.log('Testing connection to the Shibe SQL server...');
-            sql('SELECT 1').then(() => {
+            sql.query('SELECT 1').then(() => {
                 AppLog.log('Connection the Shibe SQL server is successful.');
             }).catch((error) => {
                 AppLog.error(new Error('Connection to the Shibe SQL server FAILED! ' + error), 'Startup SQL test');

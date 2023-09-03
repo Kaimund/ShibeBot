@@ -5,8 +5,8 @@
 */ 
 
 import Discord from 'discord.js';
-import { AppLog } from '../../helpers/AppLog';
-import { getGuildConfig } from '../../helpers/GuildDirectory';
+import AppLog from '../../lib/AppLog';
+import { getGuildConfig } from '../../lib/GuildDirectory';
 
 export default async function messageReactionAdd (reaction: Discord.MessageReaction) {
     
@@ -17,7 +17,7 @@ export default async function messageReactionAdd (reaction: Discord.MessageReact
         AppLog.error(new Error(`Failed to get guild configuration for ${message.guild.name}\nReason: ${err}`), 'Message Handling - New Message');
     });
     if (!guildConfig) return;
-    if (!guildConfig.enabledModules.starboard) return;
+    if (!guildConfig.starboardModuleEnabled) return;
 
     const starChannel = message.guild.channels.cache.find(channel => channel.name === 'starboard') as Discord.TextChannel;
     

@@ -2,17 +2,11 @@
 # A heccin bot for Discord
 # Copyright (C) 2023 Kaimund
 
-# API Port
-# Select which port the Shibe API should listen on
-apiPort: 12918
-
 # WEB INFO
 # Shibe will use the data below in its responses to prompt users on where to go in a web browser
 webInfo:
   # The link to the web interface
   dashboardURL: "http://localhost:12918/"
-  # The callback address for signing into the web interface
-  clientRedirect: "http://localhost:12918/login"
   # The invite link so users can add Shibe to their own Discord servers
   inviteURL: "http://localhost:12918/invite"
 

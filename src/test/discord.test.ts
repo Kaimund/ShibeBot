@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import assert from 'assert';
-import discord from '../main/discord/shard';
+import discord from '../main/discord/bot';
 
 describe('Discord Login and Startup', async function () {
     it('Should log in to Discord successfully', async function () {

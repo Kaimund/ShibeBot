@@ -6,10 +6,10 @@
 
 import Discord from 'discord.js';
 import fs from 'fs';
-import { AppLog } from '../../../helpers/AppLog';
+import AppLog from '../../../lib/AppLog';
 import { Command } from '../../core/CommandManager';
-import { getUserPersona } from '../../../helpers/UserDirectory';
-import { getSystemConfig } from '../../../helpers/SystemDirectory';
+import { getUserPersona } from '../../../lib/UserDirectory';
+import { getSystemConfig } from '../../../lib/SystemDirectory';
 
 // Main Function
 async function run (interaction: Discord.ChatInputCommandInteraction): Promise<void> {

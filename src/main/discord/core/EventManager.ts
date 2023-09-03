@@ -6,7 +6,7 @@
 
 import Discord from 'discord.js';
 import Shibe, { StatusFlag } from './Shibe';
-import { AppLog } from '../../helpers/AppLog';
+import AppLog from '../../lib/AppLog';
 // import guildMemberAdd from "../events/GuildMemberAdd"; // PRIVILEGED INTENT
 //import guildBanRemove from "../events/GuildBanRemove";
 // import guildMemberUpdate from "../events/GuildMemberUpdate"; // PRIVILEGED INTENT

@@ -6,7 +6,7 @@
 
 import fs from 'fs';
 import yaml from 'js-yaml';
-import { AppLog } from './AppLog';
+import AppLog from './AppLog';
 
 /**
  * Check whether the system directory is intact
@@ -32,10 +32,6 @@ export function checkSystemDirectory() {
  */
 export interface SystemConfig {
     /**
-     * The port which the Shibe API runs from
-     */
-    apiPort: number;
-    /**
      * References for the Web interface
      */
     webInfo: SystemConfigWebInfo;
@@ -50,10 +46,6 @@ export interface SystemConfig {
 };
 
 export interface SystemConfigWebInfo {
-    /**
-     * API callback for logins to the web interface
-     */
-    clientRedirect: string;
     /**
      * Web interface URL
      */
@@ -104,9 +96,6 @@ export interface SystemConfigAccess {
  */
 function checkSystemConfig(data: any): boolean {
 
-    if (typeof data.apiPort !== 'number') return false;
-
-    if (typeof data.webInfo.clientRedirect !== 'string') return false;
     if (typeof data.webInfo.dashboardURL !== 'string') return false;
     if (typeof data.webInfo.inviteURL !== 'string') return false;
 
@@ -143,7 +132,7 @@ export function getSystemConfig(): SystemConfig {
     // Read the file
     try {
         const configFile = fs.readFileSync('./config.yml', 'utf8');
-        const data = yaml.load(configFile);
+        const data = yaml.load(configFile) as SystemConfig;
         if (data) {
             // Try to parse
             try {

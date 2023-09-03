@@ -1,11 +1,10 @@
 /*
-    shard
+    bot
     Initial code called when a new shard is created
     Copyright (C) 2023 Kaimund
 */
 
 import Shibe, { StatusFlag } from './core/Shibe';
-import { getEvLog, EvLog } from '../helpers/AppLog';
 
 class App {
     shibe: Shibe;
@@ -36,14 +35,6 @@ class App {
                         break;
                 }
             }, 1000);
-        });
-    }
-
-    getEventLog(): Promise<EvLog> {
-        return new Promise(async (resolve, reject) => {
-            const eventlog = await getEvLog().catch(err => reject(new Error('Cannot get Event Log: ' + err)));
-            if (!eventlog) return;
-            resolve(eventlog);
         });
     }
 }

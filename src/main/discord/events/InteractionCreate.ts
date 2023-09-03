@@ -5,10 +5,9 @@
 */ 
 
 import Discord from 'discord.js';
-import { AppLog } from '../../helpers/AppLog';
+import AppLog from '../../lib/AppLog';
 import CommandManager from '../core/CommandManager';
-import { getGuildConfig } from '../../helpers/GuildDirectory';
-import { getSystemConfig } from '../../helpers/SystemDirectory';
+import { getSystemConfig } from '../../lib/SystemDirectory';
 
 /**
  * List of users who've ran a command in a set time. These users can't run any more commands during this timeout.
@@ -45,14 +44,6 @@ export default async function interactionCreate(interaction: Discord.Interaction
         interaction.guild.leave();
         return;
     }
-
-    // Import the Appropriate Guild Configuration
-    const guildConfig = await getGuildConfig(interaction.guild.id).catch((err) => {
-        AppLog.error(new Error(`Failed to get guild configuration for ${interaction.guild.name}\nReason: ${err}`), 'Message Handling - New Message');
-        interaction.reply({content: ':no_entry: Sorry, it looks like this server\'s configuration is corrupted. Please reach out to us so we can look into this.', ephemeral: true});
-        return;
-    });
-    if (!guildConfig) return;
 
     // Import the command using the key given from the command directory
     const command = CommandManager.commands.get(interaction.commandName.toLowerCase());

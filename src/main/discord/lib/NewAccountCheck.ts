@@ -5,8 +5,8 @@
 */ 
 
 import Discord from 'discord.js';
-import { AppLog } from '../../helpers/AppLog';
-import { getGuildConfig } from '../../helpers/GuildDirectory';
+import AppLog from '../../lib/AppLog';
+import { getGuildConfig } from '../../lib/GuildDirectory';
 
 export default async function newAccountMonitor (member: Discord.GuildMember) {
 

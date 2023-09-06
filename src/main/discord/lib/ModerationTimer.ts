@@ -10,7 +10,7 @@ import AppLog from '../../lib/AppLog';
 import { getUserConfig } from '../../lib/UserDirectory';
 import { getGuildConfig } from '../../lib/GuildDirectory';
 
-interface EventEntry {
+export interface EventEntry {
     eventID: bigint,
     guildID: string,
     userID: string,

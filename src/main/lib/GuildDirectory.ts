@@ -19,6 +19,10 @@ export interface GuildConfig {
      */
     actionChannel?: string;
     /**
+     * Whether Shibe should log mod events from other bots/manual moderation in the database and mod action channel
+     */
+    logExternalModEvents: boolean;
+    /**
      * Whether moderation commands (warn, mute, kick, ban) are enabled
      */
     modCommandsModuleEnabled: boolean;
@@ -50,12 +54,13 @@ export function getGuildConfig(guildID: string): Promise<GuildConfig> {
                 // Check if data exists. Create it if not
                 const defaultGuild: GuildConfig = {
                     guildID: guildID,
+                    logExternalModEvents: true,
                     modCommandsModuleEnabled: true,
                     reportsModuleEnabled: true,
                     suggestionsModuleEnabled: false,
                     starboardModuleEnabled: false
                 };
-                sql.query(`INSERT INTO Servers (guildID, modCommandsModuleEnabled, reportsModuleEnabled, suggestionsModuleEnabled, starboardModuleEnabled) VALUES ('${guildID}', '${defaultGuild.modCommandsModuleEnabled}', '${defaultGuild.reportsModuleEnabled}', '${defaultGuild.suggestionsModuleEnabled}', '${defaultGuild.starboardModuleEnabled}')`).then(() => {
+                sql.query(`INSERT INTO Servers (guildID, logExternalModEvents, modCommandsModuleEnabled, reportsModuleEnabled, suggestionsModuleEnabled, starboardModuleEnabled) VALUES ('${guildID}', '${defaultGuild.logExternalModEvents}', '${defaultGuild.modCommandsModuleEnabled}', '${defaultGuild.reportsModuleEnabled}', '${defaultGuild.suggestionsModuleEnabled}', '${defaultGuild.starboardModuleEnabled}')`).then(() => {
                     resolve(defaultGuild);
                 }).catch(sentError => {
                     reject(sentError);

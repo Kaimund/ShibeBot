@@ -35,7 +35,6 @@ export default class EventManager {
         this.client.on('messageReactionAdd', messageReactionAdd);
         this.client.on('messageReactionRemove', messageReactionRemove);
         this.client.on('guildAuditLogEntryCreate', guildAuditLogEntryCreate);
-        // TODO: Implement a Guild Member Update event for timeout expiry logging
     }
 
 }

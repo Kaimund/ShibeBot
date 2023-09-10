@@ -12,17 +12,20 @@ import { getUserConfig } from '../../../lib/UserDirectory';
 import { getGuildConfig } from '../../../lib/GuildDirectory';
 
 // Main Function
-async function run (interaction: Discord.ChatInputCommandInteraction): Promise<void> {
+async function run(interaction: Discord.ChatInputCommandInteraction): Promise<void> {
     return new Promise(async (resolve, reject) => {
 
         // Import the configuration for the relevant guild
-        const guildData = await getGuildConfig(interaction.guild.id).catch(() => {});
+        const guildData = await getGuildConfig(interaction.guild.id).catch(() => { });
 
         // Source Member
         const sourceMember = interaction.member as Discord.GuildMember;
 
-        // Target Member
-        const targetMember = interaction.options.getMember('member') as Discord.GuildMember;
+        // Target User
+        const targetUser = interaction.options.getUser('member');
+
+        // If they are still in the server, try to find the guild member
+        const targetMember = interaction.options.getMember('member') as void | Discord.GuildMember;
 
         // Time in Minutes
         const timeInMinutes = interaction.options.getInteger('time');
@@ -30,28 +33,31 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         // Reason
         const reason = interaction.options.getString('reason');
 
-        // TODO: If the member isn't in the server anymore, try to lookup the user object instead
-        // Cannot find member
-        if (!targetMember) {
-            interaction.reply({content: ':information_source: Shibe cannot find the target member. If you know the user ID of the person you would like to ban, use the `/hackban` command instead.', ephemeral: true}).catch(() => {});
+        // Cannot find user
+        if (!targetUser) {
+            interaction.reply({ content: ':information_source: Shibe cannot find the target user.', ephemeral: true }).catch(() => { });
             return resolve();
         }
 
         // Bot has no permission
         if (!interaction.guild.members.me.permissions.has('BanMembers')) {
-            interaction.reply({content: ':warning: Shibe does not have permission to ban members.', ephemeral: true}).catch(() => {});
+            interaction.reply({ content: ':warning: Shibe does not have permission to ban members.', ephemeral: true }).catch(() => { });
             return resolve();
         }
 
-        // Target member is higher up than executor
-        if (targetMember.roles.highest.position >= sourceMember.roles.highest.position) {
-            interaction.reply({content: ':lock: You cannot ban this member.', ephemeral: true}).catch(() => {});
-            return resolve();
-        }
-        // Target member not bannable by system
-        if (!targetMember.bannable) {
-            interaction.reply({content: ':warning: Shibe cannot ban this member.', ephemeral: true}).catch(() => {});
-            return resolve();
+        // Additional checks to make if this user is still in the server
+        if (targetMember) {
+            // Target member is higher up than executor
+            if (targetMember.roles.highest.position >= sourceMember.roles.highest.position) {
+                interaction.reply({ content: ':lock: You cannot ban this member.', ephemeral: true }).catch(() => { });
+                return resolve();
+            }
+
+            // Target member not bannable by system
+            if (!targetMember.bannable) {
+                interaction.reply({ content: ':warning: Shibe cannot ban this member.', ephemeral: true }).catch(() => { });
+                return resolve();
+            }
         }
 
         // Convert the time in minutes to a more friendly time description
@@ -72,69 +78,69 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         }
 
         // Create user data in the database if they do not exist
-        await getUserConfig(sourceMember.id, interaction.client).catch(() => {});
-        await getUserConfig(targetMember.id, interaction.client).catch(() => {});
+        await getUserConfig(sourceMember.id, interaction.client).catch(() => { });
+        await getUserConfig(targetUser.id, interaction.client).catch(() => { });
 
         // Try to notify the member that they have been banned (only if they're already in the server)
-        if (reason && timeInMinutes) await targetMember.send(`⛔ You have been banned from **${interaction.guild.name}** for ${timeText} for the following reason: ${reason}`).catch(() => {});
-        else if (reason) await targetMember.send(`⛔ You have been banned from **${interaction.guild.name}** for the following reason: ${reason}`).catch(() => {});
-        else if (timeInMinutes) await targetMember.send(`⛔ You have been banned from **${interaction.guild.name}** for ${timeText}`).catch(() => {});
-        else await targetMember.send(`⛔ You have been banned from **${interaction.guild.name}**.`).catch(() => {});
+        if (reason && timeInMinutes) await targetUser.send(`⛔ You have been banned from **${interaction.guild.name}** for ${timeText} for the following reason: ${reason}`).catch(() => { });
+        else if (reason) await targetUser.send(`⛔ You have been banned from **${interaction.guild.name}** for the following reason: ${reason}`).catch(() => { });
+        else if (timeInMinutes) await targetUser.send(`⛔ You have been banned from **${interaction.guild.name}** for ${timeText}`).catch(() => { });
+        else await targetUser.send(`⛔ You have been banned from **${interaction.guild.name}**.`).catch(() => { });
 
         // Actually ban the member
         if (reason) {
-            interaction.guild.members.ban(targetMember, {
+            interaction.guild.members.ban(targetUser, {
                 reason: reason,
-                deleteMessageSeconds: 24*60*60
-            }).catch(error => {return reject(new Error(error));});
+                deleteMessageSeconds: 24 * 60 * 60
+            }).catch(error => { return reject(new Error(error)); });
         } else {
-            interaction.guild.members.ban(targetMember, {
-                deleteMessageSeconds: 24*60*60
-            }).catch(error => {return reject(new Error(error));});
+            interaction.guild.members.ban(targetUser, {
+                deleteMessageSeconds: 24 * 60 * 60
+            }).catch(error => { return reject(new Error(error)); });
         }
 
         // Report successful ban
-        timeInMinutes ? await interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} has been banned from the server for ${timeText}`, ephemeral: true}).catch(() => {}) : await interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} has been banned from the server.`, ephemeral: true}).catch(() => {});
+        timeInMinutes ? await interaction.reply({ content: `:white_check_mark: ${targetUser.tag} has been banned from the server for ${timeText}`, ephemeral: true }).catch(() => { }) : await interaction.reply({ content: `:white_check_mark: ${targetUser.tag} has been banned from the server.`, ephemeral: true }).catch(() => { });
 
         // Log the incident to the Shibe database
         const eventID = Discord.SnowflakeUtil.generate();
 
         // Log the event to the database
         const expiry = (timeInMinutes) ? new Date().getTime() + (timeInMinutes * 60000) : null;
-        await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${interaction.guild.id}', '${targetMember.id}', '${sourceMember.id}', 'BAN', '${new Date().getTime()}', '${expiry}', '${sql.sanitize(reason)}', 'ACTIVE', NULL, NULL)`).catch(async (error) => {
+        await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${interaction.guild.id}', '${targetUser.id}', '${sourceMember.id}', 'BAN', '${new Date().getTime()}', '${expiry}', '${sql.sanitize(reason)}', 'ACTIVE', NULL, NULL)`).catch(async (error) => {
             AppLog.error(error, 'Logging ban to database');
-            const reply = await interaction.fetchReply().catch(() => {});
-            if (reply) await interaction.editReply(reply.content + '\n:warning: Couldn\'t log this incident due to a temporary issue. This ban will not expire!').catch(() => {});
+            const reply = await interaction.fetchReply().catch(() => { });
+            if (reply) await interaction.editReply(reply.content + '\n:warning: Couldn\'t log this incident due to a temporary issue. This ban will not expire!').catch(() => { });
         });
 
         // Try logging the incident to the action channel
         if (guildData) {
             if (guildData.actionChannel) {
                 const reportEmbed = new Discord.EmbedBuilder()
-                .setAuthor({
-                    name: 'Ban', 
-                    iconURL: interaction.user.avatarURL()
-                })
-                .setThumbnail(targetMember.user.avatarURL())
-                .setColor('#800000')
-                .addFields(
-                    {name: 'User', value: `<@${targetMember.id}> (${targetMember.user.tag})`},
-                    {name: 'Moderator', value: `<@${interaction.user.id}> (${interaction.user.tag})`},
-                )
-                .setTimestamp()
-                .setFooter({text: `Event ID: ${eventID}`});
-                if (timeInMinutes) reportEmbed.addFields({name: 'Time', value: timeText});
-                if (reason) reportEmbed.addFields({name: 'Reason', value: reason});
-    
+                    .setAuthor({
+                        name: 'Ban',
+                        iconURL: interaction.user.avatarURL()
+                    })
+                    .setThumbnail(targetUser.avatarURL())
+                    .setColor('#800000')
+                    .addFields(
+                        { name: 'User', value: `<@${targetUser.id}> (${targetUser.tag})` },
+                        { name: 'Moderator', value: `<@${interaction.user.id}> (${interaction.user.tag})` },
+                    )
+                    .setTimestamp()
+                    .setFooter({ text: `Event ID: ${eventID}` });
+                if (timeInMinutes) reportEmbed.addFields({ name: 'Time', value: timeText });
+                if (reason) reportEmbed.addFields({ name: 'Reason', value: reason });
+
                 // Log the incident
-                const actionChannel = await interaction.guild.channels.fetch(guildData.actionChannel).catch(() => {}) as Discord.TextChannel;
-                if (actionChannel) actionChannel.send({embeds: [reportEmbed]}).catch(async () => {
-                    const reply = await interaction.fetchReply().catch(() => {});
-                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
-                }); 
+                const actionChannel = await interaction.guild.channels.fetch(guildData.actionChannel).catch(() => { }) as Discord.TextChannel;
+                if (actionChannel) actionChannel.send({ embeds: [reportEmbed] }).catch(async () => {
+                    const reply = await interaction.fetchReply().catch(() => { });
+                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => { });
+                });
                 else {
-                    const reply = await interaction.fetchReply().catch(() => {});
-                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
+                    const reply = await interaction.fetchReply().catch(() => { });
+                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => { });
                 }
             }
         }

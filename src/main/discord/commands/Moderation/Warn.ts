@@ -12,13 +12,10 @@ import { getGuildConfig } from '../../../lib/GuildDirectory';
 
 // Main Function
 async function run (interaction: Discord.ChatInputCommandInteraction): Promise<void> {
-    return new Promise(async (resolve, reject) => {
+    return new Promise(async (resolve) => {
 
         // Import the configuration for the relevant guild
-        const guildConfig = await getGuildConfig(interaction.guild.id).catch((err) => {
-            return reject(new Error(`Failed to get guild configuration for ${interaction.guild.name}\nReason: ${err}`));
-        });
-        if (!guildConfig) return;
+        const guildData = await getGuildConfig(interaction.guild.id).catch(() => {});
 
         // Source Member
         const sourceMember = interaction.member as Discord.GuildMember;
@@ -34,44 +31,48 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
 
         // Try to warn over DM
         await targetMember.user.send(`⚠️ You were warned on **${interaction.guild.name}** for the following reason: ${reason}`)
-        .then(() => interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} has been warned.`, ephemeral: true}).catch(() => {}))
-        .catch(() => {
-            guildConfig.actionChannel ? interaction.reply({content: ':warning: Unable to contact the target member. This incident will still be logged.', ephemeral: true}).catch(() => {}) : interaction.reply({content: ':warning: Unable to contact the target member.', ephemeral: true}).catch(() => {});
+        .then(async () => {
+            if (guildData) await interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} has been warned.`, ephemeral: true}).catch(() => {});
+            else await interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} has been warned.\n:warning: Cannot log this incident due to a temporary service issue.`, ephemeral: true}).catch(() => {});
+        })
+        .catch(async () => {
+            if (guildData) {
+                if (guildData.actionChannel) await interaction.reply({content: ':warning: Unable to contact the target member. This incident will still be logged.', ephemeral: true}).catch(() => {});
+                else await interaction.reply({content: ':warning: Unable to contact the target member.', ephemeral: true}).catch(() => {});
+            } else await interaction.reply({content: ':warning: Unable to contact the target member.\n:warning: Cannot log this incident due to a temporary service issue.', ephemeral: true}).catch(() => {});
         });
 
         // Log the new event to the database
         await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${interaction.guild.id}', '${targetMember.id}', '${sourceMember.id}', 'WARN', '${new Date().getTime()}', NULL, '${sql.sanitize(reason)}', 'ACTIVE', NULL, NULL)`).catch(async (error) => {
             AppLog.error(error, 'Logging warning to database');
-            const reply = await interaction.fetchReply();
-            interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident to the Shibe database due to a temporary issue.').catch(() => {});
         });
 
         // Try logging the incident
-        if (guildConfig.actionChannel){
-
-            const reportEmbed = new Discord.EmbedBuilder()
-            .setAuthor({name: 'Warn', iconURL: interaction.user.avatarURL()})
-            .setThumbnail(targetMember.user.avatarURL())
-            .setColor('#ffeb00')
-            .addFields(
-                {name: 'User', value: `<@${targetMember.id}> (${targetMember.user.tag})`},
-                {name: 'Moderator', value: `<@${interaction.user.id}> (${interaction.user.tag})`},
-                {name: 'Reason', value: reason}
-            )
-            .setTimestamp()
-            .setFooter({text: `Event ID: ${eventID}`});
-
-            // Log the incident
-            const actionChannel = await interaction.guild.channels.fetch(guildConfig.actionChannel).catch(() => {}) as Discord.TextChannel;
-            if (actionChannel) actionChannel.send({embeds: [reportEmbed]}).catch(async () => {
-                const reply = await interaction.fetchReply().catch(() => {});
-                if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
-            }); 
-            else {
-                const reply = await interaction.fetchReply().catch(() => {});
-                if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
+        if (guildData) {
+            if (guildData.actionChannel) {
+                const reportEmbed = new Discord.EmbedBuilder()
+                .setAuthor({name: 'Warn', iconURL: interaction.user.avatarURL()})
+                .setThumbnail(targetMember.user.avatarURL())
+                .setColor('#ffeb00')
+                .addFields(
+                    {name: 'User', value: `<@${targetMember.id}> (${targetMember.user.tag})`},
+                    {name: 'Moderator', value: `<@${interaction.user.id}> (${interaction.user.tag})`},
+                    {name: 'Reason', value: reason}
+                )
+                .setTimestamp()
+                .setFooter({text: `Event ID: ${eventID}`});
+    
+                // Log the incident
+                const actionChannel = await interaction.guild.channels.fetch(guildData.actionChannel).catch(() => {}) as Discord.TextChannel;
+                if (actionChannel) actionChannel.send({embeds: [reportEmbed]}).catch(async () => {
+                    const reply = await interaction.fetchReply().catch(() => {});
+                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
+                }); 
+                else {
+                    const reply = await interaction.fetchReply().catch(() => {});
+                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
+                }
             }
-        
         }
         return resolve();
     });

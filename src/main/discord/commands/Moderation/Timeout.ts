@@ -3,6 +3,7 @@
     Discord command for server moderators to prevent a current server member from sending messages.
     Copyright (C) 2023 Kaimund
 */
+
 import Discord from 'discord.js';
 import sql from '../../../lib/SQL';
 import AppLog from '../../../lib/AppLog';
@@ -16,10 +17,7 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
     return new Promise(async (resolve, reject) => {
 
         // Import the configuration for the relevant guild
-        const guildData = await getGuildConfig(interaction.guild.id).catch((err) => {
-            return reject(new Error(`Failed to get guild configuration for ${interaction.guild.name}\nReason: ${err}`));
-        });
-        if (!guildData) return;
+        const guildData = await getGuildConfig(interaction.guild.id).catch(() => {});
 
         // Source Member
         const sourceMember = interaction.member as Discord.GuildMember;
@@ -61,25 +59,10 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         const eventID = Discord.SnowflakeUtil.generate();
 
         // Create user data in the database if they do not exist
-        await getUserConfig(sourceMember.id, interaction.client).catch(() => {});
-        await getUserConfig(targetMember.id, interaction.client).catch(() => {});
+        getUserConfig(sourceMember.id, interaction.client).catch(() => {});
+        getUserConfig(targetMember.id, interaction.client).catch(() => {});
 
         if (timeInMinutes) {
-            // Timeout the member
-            await targetMember.timeout(timeInMinutes * 60000, reason).catch(error => {return reject(new Error(error));});
-
-            // Mark all current timeouts as 'REVOKED' as this overrides any outstanding timeouts
-            await sql.query(`UPDATE ModActions SET status = 'REVOKED' WHERE guildID = '${interaction.guild.id}' AND userID = '${targetMember.id}' AND action = 'TIMEOUT' AND (status = 'ACTIVE' OR status = 'APPEALED' OR status = 'DENIED')`).catch((error) => {
-                AppLog.error(error, 'Logging timeout to database (revoke existing)');
-            });
-
-            // Log the new event to the database
-            await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${interaction.guild.id}', '${targetMember.id}', '${sourceMember.id}', 'TIMEOUT', '${new Date().getTime()}', '${new Date().getTime() + (timeInMinutes * 60000)}', '${sql.sanitize(reason)}', 'ACTIVE', NULL, NULL)`).catch(async (error) => {
-                AppLog.error(error, 'Logging timeout to database');
-                const reply = await interaction.fetchReply();
-                interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident to the Shibe database due to a temporary issue.').catch(() => {});
-            });
-
             // Convert the time in minutes to a more friendly time description
             let timeText: string;
             switch (timeInMinutes) {
@@ -102,87 +85,119 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
             else targetMember.user.send(`🔇 You have been timed out on **${interaction.guild.name}** for ${timeText}`).catch(() => {});
 
             // Report successful mute
-            interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} has been timed out for ${timeText}`, ephemeral: true}).catch(() => {});
+            await interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} has been timed out for ${timeText}`, ephemeral: true}).catch(() => {});
+
+            // Timeout the member
+            await targetMember.timeout(timeInMinutes * 60000, reason).catch(error => {return reject(new Error(error));});
+
+            // Flag to check if SQL execution failed
+            let sqlFailed = false;
+
+            // Mark all current timeouts as 'REVOKED' as this overrides any outstanding timeouts
+            await sql.query(`UPDATE ModActions SET status = 'REVOKED' WHERE guildID = '${interaction.guild.id}' AND userID = '${targetMember.id}' AND action = 'TIMEOUT' AND (status = 'ACTIVE' OR status = 'APPEALED' OR status = 'DENIED')`).catch((error) => {
+                AppLog.error(error, 'Logging timeout to database (revoke existing)');
+                sqlFailed = true;
+            });
+
+            // Log the new event to the database
+            await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${interaction.guild.id}', '${targetMember.id}', '${sourceMember.id}', 'TIMEOUT', '${new Date().getTime()}', '${new Date().getTime() + (timeInMinutes * 60000)}', '${sql.sanitize(reason)}', 'ACTIVE', NULL, NULL)`).catch((error) => {
+                AppLog.error(error, 'Logging timeout to database');
+                sqlFailed = true;
+            });
+
+            // Report if the SQL execution failed
+            if (sqlFailed) {
+                const reply = await interaction.fetchReply().catch(() => {});
+                if (reply) await interaction.editReply(reply.content + '\n:warning: Couldn\'t log this incident due to a temporary issue.').catch(() => {});
+            }
 
             // Try logging the incident
-            if (guildData.actionChannel) {
-                const reportEmbed = new Discord.EmbedBuilder()
-                .setAuthor({name: 'Timeout', iconURL: interaction.user.avatarURL()})
-                .setThumbnail(targetMember.user.avatarURL())
-                .setColor('#ff7f00')
-                .addFields(
-                    {name: 'User', value: `<@${targetMember.id}> (${targetMember.user.tag})`},
-                    {name: 'Moderator', value: `<@${interaction.user.id}> (${interaction.user.tag})`},
-                    {name: 'Time', value: timeText}
-                )
-                .setTimestamp()
-                .setFooter({text: `Event ID: ${eventID}`});
-                if (reason) reportEmbed.addFields({name: 'Reason', value: reason});
-
-                // Log the incident
-                const actionChannel = await interaction.guild.channels.fetch(guildData.actionChannel).catch(() => {}) as Discord.TextChannel;
-                if (actionChannel) actionChannel.send({embeds: [reportEmbed]}).catch(async () => {
-                    const reply = await interaction.fetchReply().catch(() => {});
-                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
-                }); 
-                else {
-                    const reply = await interaction.fetchReply().catch(() => {});
-                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
+            if (guildData) {
+                if (guildData.actionChannel) {
+                    const reportEmbed = new Discord.EmbedBuilder()
+                    .setAuthor({name: 'Timeout', iconURL: interaction.user.avatarURL()})
+                    .setThumbnail(targetMember.user.avatarURL())
+                    .setColor('#ff7f00')
+                    .addFields(
+                        {name: 'User', value: `<@${targetMember.id}> (${targetMember.user.tag})`},
+                        {name: 'Moderator', value: `<@${interaction.user.id}> (${interaction.user.tag})`},
+                        {name: 'Time', value: timeText}
+                    )
+                    .setTimestamp()
+                    .setFooter({text: `Event ID: ${eventID}`});
+                    if (reason) reportEmbed.addFields({name: 'Reason', value: reason});
+    
+                    // Log the incident
+                    const actionChannel = await interaction.guild.channels.fetch(guildData.actionChannel).catch(() => {}) as Discord.TextChannel;
+                    if (actionChannel) actionChannel.send({embeds: [reportEmbed]}).catch(async () => {
+                        const reply = await interaction.fetchReply().catch(() => {});
+                        if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
+                    }); 
+                    else {
+                        const reply = await interaction.fetchReply().catch(() => {});
+                        if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
+                    }
                 }
             }
             return resolve();
         } else {
-            // Try to find the latest event (for logging, if there is an action channel set on the server)
-            let eventID: bigint;
-            if (guildData.actionChannel) {
-                const activeTimeouts = await sql.query(`SELECT * FROM ModActions WHERE guildID = '${interaction.guild.id}' AND userID = '${targetMember.id}' AND action = 'TIMEOUT' AND (status = 'ACTIVE' OR status = 'APPEALED' OR status = 'DENIED')`).catch((error) => {
-                    AppLog.error(error, 'Logging timeout command - revoked timeout (get latest event ID)');
-                }) as void | Array<EventEntry>;
-
-                // Go through each event and find which one is the most recent - this will be the event ID in the report
-                if (activeTimeouts) {
-                    activeTimeouts.forEach(event => {
-                        if (!eventID || eventID < event.eventID) eventID = event.eventID;
-                    });
-                }
-            }
-
-            // Mark all current timeouts as 'REVOKED' as this overrides any outstanding timeouts
-            await sql.query(`UPDATE ModActions SET status = 'REVOKED', revokedModeratorID = '${sourceMember.id}', revokedReason = '${sql.sanitize(reason)}' WHERE guildID = '${interaction.guild.id}' AND userID = '${targetMember.id}' AND action = 'TIMEOUT' AND (status = 'ACTIVE' OR status = 'APPEALED' OR status = 'DENIED')`).catch((error) => {
-                AppLog.error(error, 'Logging timeout to database (revoke existing)');
-            });
-
             // Remove the timeout on the member
             await targetMember.timeout(null).catch(error => {return reject(new Error(error));});
 
             // Try to contact the member over DM to notify of unmute
             targetMember.user.send(`🔊 Your timeout on **${interaction.guild.name}** has been revoked.`).catch(() => {});
-            interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} is no longer timed out.`, ephemeral: true}).catch(() => {});
+            await interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} is no longer timed out.`, ephemeral: true}).catch(() => {});
+
+            // Try to find the latest event (for logging, if there is an action channel set on the server)
+            let eventID: bigint;
+            if (guildData) {
+                if (guildData.actionChannel) {
+                    const activeTimeouts = await sql.query(`SELECT * FROM ModActions WHERE guildID = '${interaction.guild.id}' AND userID = '${targetMember.id}' AND action = 'TIMEOUT' AND (status = 'ACTIVE' OR status = 'APPEALED' OR status = 'DENIED')`).catch((error) => {
+                        AppLog.error(error, 'Logging timeout command - revoked timeout (get latest event ID)');
+                    }) as void | Array<EventEntry>;
+    
+                    // Go through each event and find which one is the most recent - this will be the event ID in the report
+                    if (activeTimeouts) {
+                        activeTimeouts.forEach(event => {
+                            if (!eventID || eventID < event.eventID) eventID = event.eventID;
+                        });
+                    }
+                }
+            }
+
+            // Mark all current timeouts as 'REVOKED' as this overrides any outstanding timeouts
+            await sql.query(`UPDATE ModActions SET status = 'REVOKED', revokedModeratorID = '${sourceMember.id}', revokedReason = '${sql.sanitize(reason)}' WHERE guildID = '${interaction.guild.id}' AND userID = '${targetMember.id}' AND action = 'TIMEOUT' AND (status = 'ACTIVE' OR status = 'APPEALED' OR status = 'DENIED')`).catch(async (error) => {
+                AppLog.error(error, 'Logging timeout to database (revoke existing)');
+                const reply = await interaction.fetchReply().catch(() => {});
+                if (reply) await interaction.editReply(reply.content + '\n:warning: Couldn\'t log this incident due to a temporary issue.').catch(() => {});
+            });
 
             // Try logging the incident
-            if (guildData.actionChannel) {
-                const reportEmbed = new Discord.EmbedBuilder()
-                .setAuthor({name: 'Timeout Revoked', iconURL: interaction.user.avatarURL()})
-                .setThumbnail(targetMember.user.avatarURL())
-                .setColor('#00ff7f')
-                .addFields(
-                    {name: 'User', value: `<@${targetMember.id}> (${targetMember.user.tag})`},
-                    {name: 'Moderator', value: `<@${interaction.user.id}> (${interaction.user.tag})`}
-                )
-                .setTimestamp();
-
-                if (reason) reportEmbed.addFields({name: 'Reason', value: reason});
-                if (eventID) reportEmbed.setFooter({text: `Event ID: ${eventID}`});
-                
-                // Log the incident
-                const actionChannel = await interaction.guild.channels.fetch(guildData.actionChannel).catch(() => {}) as Discord.TextChannel;
-                if (actionChannel) actionChannel.send({embeds: [reportEmbed]}).catch(async () => {
-                    const reply = await interaction.fetchReply().catch(() => {});
-                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
-                }); 
-                else {
-                    const reply = await interaction.fetchReply().catch(() => {});
-                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
+            if (guildData) {
+                if (guildData.actionChannel) {
+                    const reportEmbed = new Discord.EmbedBuilder()
+                    .setAuthor({name: 'Timeout Revoked', iconURL: interaction.user.avatarURL()})
+                    .setThumbnail(targetMember.user.avatarURL())
+                    .setColor('#00ff7f')
+                    .addFields(
+                        {name: 'User', value: `<@${targetMember.id}> (${targetMember.user.tag})`},
+                        {name: 'Moderator', value: `<@${interaction.user.id}> (${interaction.user.tag})`}
+                    )
+                    .setTimestamp();
+    
+                    if (reason) reportEmbed.addFields({name: 'Reason', value: reason});
+                    if (eventID) reportEmbed.setFooter({text: `Event ID: ${eventID}`});
+                    
+                    // Log the incident
+                    const actionChannel = await interaction.guild.channels.fetch(guildData.actionChannel).catch(() => {}) as Discord.TextChannel;
+                    if (actionChannel) actionChannel.send({embeds: [reportEmbed]}).catch(async () => {
+                        const reply = await interaction.fetchReply().catch(() => {});
+                        if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
+                    }); 
+                    else {
+                        const reply = await interaction.fetchReply().catch(() => {});
+                        if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
+                    }
                 }
             }
             return resolve();

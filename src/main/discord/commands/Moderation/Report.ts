@@ -10,13 +10,16 @@ import { getGuildConfig } from '../../../lib/GuildDirectory';
 
 // Main Function
 async function run (interaction: Discord.ChatInputCommandInteraction): Promise<void> {
-    return new Promise(async (resolve, reject) => {
+    return new Promise(async (resolve) => {
 
         // Import the configuration for the relevant guild
-        const guildConfig = await getGuildConfig(interaction.guild.id).catch((err) => {
-            return reject(new Error(`Failed to get guild configuration for ${interaction.guild.name}\nReason: ${err}`));
-        });
-        if (!guildConfig) return;
+        const guildData = await getGuildConfig(interaction.guild.id).catch(() => {});
+
+        // Do not continue if fetching guild data fails
+        if (!guildData) {
+            interaction.reply({content: ':warning: Shibe could not submit your report due to a temporary service issue. Please contact a moderator in person, or try again later.', ephemeral: true});
+            return resolve();
+        }
 
         // Target Member
         const targetMember = interaction.options.getMember('member') as Discord.GuildMember;
@@ -25,7 +28,7 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         const reason = interaction.options.getString('reason');
 
         // No Action Channel
-        if (!guildConfig.actionChannel) {
+        if (!guildData.actionChannel) {
             interaction.reply({content: ':information_source: Reporting hasn\'t been configured on this server. Please contact a moderator directly if you would like to report a member.', ephemeral: true}).catch(() => {});
             return resolve();
         }
@@ -44,7 +47,7 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         .setFooter({text: `Target User ID: ${targetMember.id}`});
 
         // Get the Channel for Reporting
-        const actionChannel = await interaction.guild.channels.fetch(guildConfig.actionChannel).catch(() => {}) as Discord.TextChannel;
+        const actionChannel = await interaction.guild.channels.fetch(guildData.actionChannel).catch(() => {}) as Discord.TextChannel;
 
         // If the channel cannot be found, it has been deleted. Cancel the report and warn of this.
         if (!actionChannel) {

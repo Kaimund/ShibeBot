@@ -6,17 +6,10 @@
 
 import Discord from 'discord.js';
 import { Command } from '../../core/CommandManager';
-import { getGuildConfig } from '../../../lib/GuildDirectory';
 
 // Main Function
 async function run (interaction: Discord.ChatInputCommandInteraction): Promise<void> {
     return new Promise(async (resolve, reject) => {
-
-        // Import the configuration for the relevant guild
-        const guildConfig = await getGuildConfig(interaction.guild.id).catch((err) => {
-            return reject(new Error(`Failed to get guild configuration for ${interaction.guild.name}\nReason: ${err}`));
-        });
-        if (!guildConfig) return;
 
         // Bot has no permission
         if (!interaction.guild.members.me.permissions.has('ManageChannels')) {

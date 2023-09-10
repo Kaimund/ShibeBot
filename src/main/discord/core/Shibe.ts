@@ -144,7 +144,7 @@ export default class Shibe {
             sql.query('SELECT 1').then(() => {
                 AppLog.log('Connection the Shibe SQL server is successful.');
             }).catch((error) => {
-                AppLog.error(new Error('Connection to the Shibe SQL server FAILED! ' + error), 'Startup SQL test');
+                AppLog.error(new Error('Connection to the Shibe SQL server FAILED! ' + error), 'Startup SQL test', true);
             });
 
             // Send slash commands to the Discord API

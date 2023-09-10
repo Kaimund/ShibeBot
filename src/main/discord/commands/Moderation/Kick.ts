@@ -15,10 +15,7 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
     return new Promise(async (resolve, reject) => {
 
         // Import the configuration for the relevant guild
-        const guildConfig = await getGuildConfig(interaction.guild.id).catch((err) => {
-            return reject(new Error(`Failed to get guild configuration for ${interaction.guild.name}\nReason: ${err}`));
-        });
-        if (!guildConfig) return;
+        const guildData = await getGuildConfig(interaction.guild.id).catch(() => {});
 
         // Source Member
         const sourceMember = interaction.member as Discord.GuildMember;
@@ -50,14 +47,12 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         // Log the incident to the Shibe database
         const eventID = Discord.SnowflakeUtil.generate();
 
+        // Try to notify the user that they have been kicked
+        if (reason) await targetMember.user.send(`:x: You were kicked from **${interaction.guild.name}** for the following reason: ${reason}`).catch(() => {});
+        else await targetMember.user.send(`:x: You were kicked from **${interaction.guild.name}**.`).catch(() => {});
+
         // Everything checks out. Now try to kick the member.
-        if (reason) {
-            await targetMember.user.send(`:x: You were kicked from **${interaction.guild.name}** for the following reason: ${reason}`).catch(() => {});
-            await targetMember.kick(reason).catch(error => {return reject(error);});
-        } else {
-            await targetMember.user.send(`:x: You were kicked from **${interaction.guild.name}**.`).catch(() => {});
-            await targetMember.kick().catch(error => {return reject(error);});
-        }
+        await targetMember.kick(reason).catch(error => {return reject(error);});
 
         // Report the success
         await interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} was kicked from the server.`, ephemeral: true}).catch(() => {});
@@ -65,37 +60,38 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         // Log the new event to the database
         await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${interaction.guild.id}', '${targetMember.id}', '${sourceMember.id}', 'KICK', '${new Date().getTime()}', '', '${sql.sanitize(reason)}', 'ACTIVE', NULL, NULL)`).catch(async (error) => {
             AppLog.error(error, 'Logging kick to database');
-            const reply = await interaction.fetchReply();
-            interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident to the Shibe database due to a temporary issue.').catch(() => {});
+            const reply = await interaction.fetchReply().catch(() => {});
+            if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log this incident due to a temporary issue.').catch(() => {});
         });
-        
 
         // Try logging the incident
-        if (guildConfig.actionChannel) {
-            const reportEmbed = new Discord.EmbedBuilder()
-            .setAuthor({name: 'Kick', iconURL: interaction.user.avatarURL()})
-            .setThumbnail(targetMember.user.avatarURL())
-            .setColor('#ff0000')
-            .addFields(
-                {name: 'User', value: `<@${targetMember.id}> (${targetMember.user.tag})`},
-                {name: 'Moderator', value: `<@${interaction.user.id}> (${interaction.user.tag})`}
-            )
-            .setTimestamp()
-            .setFooter({text: `Event ID: ${eventID}`});
-
-            if (reason) reportEmbed.addFields({name: 'Reason', value: reason});
-
-            // Log the incident
-            const actionChannel = await interaction.guild.channels.fetch(guildConfig.actionChannel).catch(() => {}) as Discord.TextChannel;
-            if (actionChannel) actionChannel.send({embeds: [reportEmbed]}).catch(async () => {
-                const reply = await interaction.fetchReply().catch(() => {});
-                if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
-            }); 
-            else {
-                const reply = await interaction.fetchReply().catch(() => {});
-                if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
+        if (guildData) {
+            if (guildData.actionChannel) {
+                const reportEmbed = new Discord.EmbedBuilder()
+                .setAuthor({name: 'Kick', iconURL: interaction.user.avatarURL()})
+                .setThumbnail(targetMember.user.avatarURL())
+                .setColor('#ff0000')
+                .addFields(
+                    {name: 'User', value: `<@${targetMember.id}> (${targetMember.user.tag})`},
+                    {name: 'Moderator', value: `<@${interaction.user.id}> (${interaction.user.tag})`}
+                )
+                .setTimestamp()
+                .setFooter({text: `Event ID: ${eventID}`});
+    
+                if (reason) reportEmbed.addFields({name: 'Reason', value: reason});
+    
+                // Log the incident
+                const actionChannel = await interaction.guild.channels.fetch(guildData.actionChannel).catch(() => {}) as Discord.TextChannel;
+                if (actionChannel) actionChannel.send({embeds: [reportEmbed]}).catch(async () => {
+                    const reply = await interaction.fetchReply().catch(() => {});
+                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
+                }); 
+                else {
+                    const reply = await interaction.fetchReply().catch(() => {});
+                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
+                }
+    
             }
-
         }
         return resolve();
     });

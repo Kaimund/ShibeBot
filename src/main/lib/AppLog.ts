@@ -24,7 +24,7 @@ namespace AppLog {
         console.log(`\x1b[34m[${new Date().toString()}] [INFO] ${message}\x1b[0m`);
     }
 
-    export async function warning (message: string, causedBy?: string, dontLog?: boolean) {
+    export function warning (message: string, causedBy?: string, dontLog?: boolean) {
         console.log(`\x1b[33m[${new Date().toString()}] [WARN] ${message}\x1b[0m`);
         if (causedBy) console.log(`\x1b[33mCaused by: ${causedBy}\x1b[0m`);
 
@@ -43,7 +43,7 @@ namespace AppLog {
         }
     }
 
-    export async function error (message: Error, causedBy?: string, dontLog?: boolean) {
+    export function error (message: Error, causedBy?: string, dontLog?: boolean) {
         console.log(`\x1b[31m[${new Date().toString()}] [ERROR] ${message.stack}\x1b[0m`);
         if (causedBy) console.log(`\x1b[31mCaused by: ${causedBy}\x1b[0m`);
         

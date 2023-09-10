@@ -10,7 +10,6 @@ import { Command } from '../../core/CommandManager';
 // Main Function
 async function run (interaction: Discord.ChatInputCommandInteraction): Promise<void> {
     return new Promise(async (resolve) => {
-    
         // Find the suggestion channel
         const suggestionChannel = await interaction.guild.channels.fetch('suggestions').catch(() => {}) as Discord.TextChannel;
         if (!suggestionChannel) {
@@ -46,7 +45,7 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
 
             return resolve();
         } catch {
-            interaction.reply(':warning: Couldn\'t submit your suggestion. Shibe does not have permission to access the suggestions channel.');
+            interaction.reply(':warning: Couldn\'t submit your suggestion. Shibe does not have permission to access the suggestions channel.').catch(() => {});
             return resolve();
         }
     });

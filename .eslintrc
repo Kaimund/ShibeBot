@@ -3,7 +3,8 @@
     "extends": ["plugin:@typescript-eslint/recommended"],
     "parserOptions": {
       "ecmaVersion": 2018,
-      "sourceType": "module"
+      "sourceType": "module",
+      "project": "./tsconfig.json"
     },
     "rules": {
       "no-var": ["warn"],
@@ -18,6 +19,7 @@
       "@typescript-eslint/no-unused-vars": ["warn"],
       "@typescript-eslint/no-use-before-define": "off",
       "@typescript-eslint/consistent-type-assertions": ["warn"],
+      "@typescript-eslint/no-floating-promises": "error",
       "@typescript-eslint/no-namespace": "off",
       "@typescript-eslint/camelcase": "off"
     }

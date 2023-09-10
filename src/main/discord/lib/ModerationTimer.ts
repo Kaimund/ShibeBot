@@ -159,6 +159,6 @@ export default class ModerationTimer {
             setTimeout(modTimerFunc, 60000);
         };
 
-        modTimerFunc();
+        modTimerFunc().catch(() => {});
     }
 }

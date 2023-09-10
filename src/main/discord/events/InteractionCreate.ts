@@ -26,12 +26,12 @@ export default async function interactionCreate(interaction: Discord.Interaction
     if (interaction.user.bot) return;
     // The bot will ignore any messages over Direct Message.
     if (!interaction.channel) {
-        interaction.reply({content: 'At this time, Shibe cannot respond to messages over DM.', ephemeral: true});
+        interaction.reply({content: 'At this time, Shibe cannot respond to messages over DM.', ephemeral: true}).catch(() => {});
         return;
     }
     // The bot will ignore any messages outside of a normal text channel. 
     if (interaction.channel.type !== Discord.ChannelType.GuildText) {
-        interaction.reply({content: 'At this time, Shibe can only respond to commands in a normal text channel.', ephemeral: true});
+        interaction.reply({content: 'At this time, Shibe can only respond to commands in a normal text channel.', ephemeral: true}).catch(() => {});
         return;
     };
 
@@ -41,7 +41,7 @@ export default async function interactionCreate(interaction: Discord.Interaction
     // Check if the server is banned from using Shibe
     if (systemConfig.access.bannedServers.includes(interaction.guild.id)) {
         if (interaction.user.id !== interaction.client.user.id) await interaction.reply({content: ':octagonal_sign: This server is banned from using Shibe.', ephemeral: true}).catch(() => {});
-        interaction.guild.leave();
+        interaction.guild.leave().catch(() => {});
         return;
     }
 

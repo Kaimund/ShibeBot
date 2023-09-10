@@ -17,7 +17,7 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
 
         // Do not continue if fetching guild data fails
         if (!guildData) {
-            interaction.reply({content: ':warning: Shibe could not submit your report due to a temporary service issue. Please contact a moderator in person, or try again later.', ephemeral: true});
+            interaction.reply({content: ':warning: Shibe could not submit your report due to a temporary service issue. Please contact a moderator in person, or try again later.', ephemeral: true}).catch(() => {});
             return resolve();
         }
 

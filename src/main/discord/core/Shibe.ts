@@ -53,7 +53,7 @@ export default class Shibe {
             } catch (err) {
                 AppLog.fatal('Could not create the required database directory. ' + err);
                 AppLog.fatal('Shibe cannot continue. Exiting...');
-                this.client.destroy();
+                this.client.destroy().catch(() => {});
                 process.exit(1);
             }
         } if(!fs.existsSync('./db/guilds')){
@@ -63,7 +63,7 @@ export default class Shibe {
             } catch (err) {
                 AppLog.fatal('Could not create the required root guilds directory. ' + err);
                 AppLog.fatal('Shibe cannot continue. Exiting...');
-                this.client.destroy();
+                this.client.destroy().catch(() => {});
                 process.exit(1);
             }
         } if(!fs.existsSync('./db/personas')){
@@ -73,7 +73,7 @@ export default class Shibe {
             } catch (err) {
                 AppLog.fatal('Could not create the required persona image directory. ' + err);
                 AppLog.fatal('Shibe cannot continue. Exiting...');
-                this.client.destroy();
+                this.client.destroy().catch(() => {});
                 process.exit(1);
             }
         }
@@ -156,7 +156,7 @@ export default class Shibe {
             });
         }).catch((error) => {
             AppLog.fatal('Failed to log in. Your token may be invalid, or there may be a service outage. ' + error);
-            this.client.destroy();
+            this.client.destroy().catch(() => {});
             this.startupStatus = StatusFlag.Failed;
             process.exit(1);
         });

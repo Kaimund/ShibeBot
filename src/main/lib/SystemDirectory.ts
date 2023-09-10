@@ -15,7 +15,7 @@ export function checkSystemDirectory() {
     if (!fs.existsSync('./config.yml')) {
         info('Could not find the system configuration file. Creating a new one...');
         try {
-            fs.copyFileSync('./src/main/lib/config.default.yml', './config.yml');
+            fs.copyFileSync('./lib/config.default.yml', './config.yml');
         } catch (err) {
             fatal('Cannot create new system configuration file.\n' + err);
             fatal('This file is REQUIRED for Shibe to work. Shibe will now exit.');

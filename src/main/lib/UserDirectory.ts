@@ -5,8 +5,7 @@
 */ 
 
 import sql from './SQL';
-import bot from '../discord/bot';
-import { ColorResolvable, User } from 'discord.js';
+import { Client, ColorResolvable, User } from 'discord.js';
 
 /**
  * Format for a user configuration file on Shibe
@@ -32,35 +31,43 @@ interface UserPersona {
 /**
  * Retrieves a user's configuration file as a manipulatable object
  * @param userID The ID of the user to get the configuration from
+ * @param client The client to lookup the user with
  */
-export async function getUserConfig(userID: string): Promise<UserConfig> {
-    return new Promise((resolve, reject) => {
+export async function getUserConfig(userID: string, client: Client): Promise<UserConfig> {
+    return new Promise(async (resolve, reject) => {
         // Fetch the user's username
         let user: User;
-        bot.shibe.getClient().users.fetch(userID).then(fetchedUser => {
+        await client.users.fetch(userID).then(fetchedUser => {
             user = fetchedUser;
         }).catch(() => {});
 
-        let username: string;
-        user ? username = user.tag : username = null;
+        const username = (user) ? user.tag : '';
+        const avatarURL = (user) ? user.avatarURL() : '';
 
         // Check if data exists. Create it if not
-        sql.query('SELECT * FROM Users WHERE userID = ' + userID).then(data => {
+        await sql.query(`SELECT * FROM Users WHERE userID = '${userID}'`).then(async data => {
             if (data.length > 0) {
                 const result = data[0] as UserConfig;
 
                 // Check if username has changed, and update the database if it has
                 if (result.username != username) {
                     sql.query(`UPDATE Users SET username = '${sql.sanitize(username)}' WHERE userID = '${userID}'`).catch(() => {});
+                    result.username = username;
+                }
+                // Check if avatar URL has changed, and update the database if it has
+                if ((result.avatarURL != avatarURL) && avatarURL) {
+                    sql.query(`UPDATE Users SET avatarURL = '${sql.sanitize(avatarURL)}' WHERE userID = '${userID}'`).catch(() => {});
+                    result.avatarURL = avatarURL;
                 }
 
                 resolve(result);
             } else {
                 const defaultUser: UserConfig = {
                     userID: userID,
-                    username: username
+                    username: username,
+                    avatarURL: avatarURL
                 };
-                sql.query(`INSERT INTO Users (userID, username) VALUES ('${defaultUser.userID}', '${sql.sanitize(defaultUser.username)}')`).then(() => {
+                await sql.query(`INSERT INTO Users (userID, username, avatarURL) VALUES ('${defaultUser.userID}', '${sql.sanitize(defaultUser.username)}', '${defaultUser.avatarURL}')`).then(() => {
                     resolve(defaultUser);
                 }).catch(sentError => {
                     reject(sentError);

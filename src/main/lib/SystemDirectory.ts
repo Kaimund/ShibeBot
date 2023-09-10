@@ -6,7 +6,6 @@
 
 import fs from 'fs';
 import yaml from 'js-yaml';
-import AppLog from './AppLog';
 
 /**
  * Check whether the system directory is intact
@@ -14,12 +13,12 @@ import AppLog from './AppLog';
 export function checkSystemDirectory() {
     // System Configuration
     if (!fs.existsSync('./config.yml')) {
-        AppLog.info('Could not find the system configuration file. Creating a new one...');
+        info('Could not find the system configuration file. Creating a new one...');
         try {
             fs.copyFileSync('./src/main/lib/config.default.yml', './config.yml');
         } catch (err) {
-            AppLog.fatal('Cannot create new system configuration file.\n' + err);
-            AppLog.fatal('This file is REQUIRED for Shibe to work. Shibe will now exit.');
+            fatal('Cannot create new system configuration file.\n' + err);
+            fatal('This file is REQUIRED for Shibe to work. Shibe will now exit.');
             process.exit(1);
         }
     }
@@ -138,20 +137,29 @@ export function getSystemConfig(): SystemConfig {
             try {
                 if (!checkSystemConfig(data)) {
                     // System config is invalid. Report and exit. 
-                    AppLog.fatal('Your system configuration file is invalid. Please check the file for errors, or delete the file to replace the configuration with the system default.');
+                    fatal('Your system configuration file is invalid. Please check the file for errors, or delete the file to replace the configuration with the system default.');
                     process.exit(1);
                 }
                 return data;
             } catch (error) {
-                AppLog.fatal('Your system configuration file is corrupt. Please check the file for errors, or delete the file to replace the configuration with the system default.\n' + error);
+                fatal('Your system configuration file is corrupt. Please check the file for errors, or delete the file to replace the configuration with the system default.\n' + error);
                 process.exit(1);
             }
         } else {
-            AppLog.fatal('Your system configuration file is inaccessible. Shibe cannot continue with this data and will now exit.');
+            fatal('Your system configuration file is inaccessible. Shibe cannot continue with this data and will now exit.');
             process.exit(1);
         }
     } catch (error) {
-        AppLog.fatal('Cannot retrieve system configuration file.\n' + error);
+        fatal('Cannot retrieve system configuration file.\n' + error);
         process.exit(1);
     }
+}
+
+// Functions for outputting to console
+function info (message: string) {
+    console.log(`\x1b[34m[${new Date().toString()}] [INFO] ${message}\x1b[0m`);
+}
+
+function fatal (message: string) {
+    console.log(`\x1b[41m\x1b[37m[${new Date().toString()}] [FATAL] ${message}\x1b[0m`);
 }

@@ -45,7 +45,7 @@ export default async function guildAuditLogEntryCreate (auditLogEntry: Discord.G
                         const eventID = Discord.SnowflakeUtil.generate();
 
                         // Log the new event in SQL for this user on this server
-                        await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${guild.id}', '${auditLogEntry.targetId}', '${auditLogEntry.executorId}', 'TIMEOUT', '${timeNow}', '${expiry}', '${sql.sanitize(auditLogEntry.reason)}', 'ACTIVE')`).catch((error) => {
+                        await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${guild.id}', '${auditLogEntry.targetId}', '${auditLogEntry.executorId}', 'TIMEOUT', '${timeNow}', '${expiry}', '${sql.sanitize(auditLogEntry.reason)}', 'ACTIVE', NULL, NULL)`).catch((error) => {
                             AppLog.error(error, 'Guild user timeout event - new timeout (record new)');
                         });
 

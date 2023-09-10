@@ -92,7 +92,7 @@ export default class ModerationTimer {
                                         reportEmbed.setThumbnail(user.avatarURL());
                                     } else {
                                         // Try to get user information from database instead
-                                        const userData = await getUserConfig(event.userID).catch(() => {});
+                                        const userData = await getUserConfig(event.userID, client).catch(() => {});
                                         if (userData) {
                                             reportEmbed.addFields({name: 'User', value: `<@${event.userID}> (${userData.username})`});
                                             reportEmbed.setThumbnail(userData.avatarURL);
@@ -138,7 +138,7 @@ export default class ModerationTimer {
                                     reportEmbed.setThumbnail(user.avatarURL());
                                 } else {
                                     // Try to get user information from database instead
-                                    const userData = await getUserConfig(event.userID).catch(() => {});
+                                    const userData = await getUserConfig(event.userID, client).catch(() => {});
                                     if (userData) {
                                         reportEmbed.addFields({name: 'User', value: `<@${event.userID}> (${userData.username})`});
                                         reportEmbed.setThumbnail(userData.avatarURL);

@@ -73,6 +73,10 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
             }
         }
 
+        // Create user data in the database if they do not exist
+        await getUserConfig(sourceMember.id, interaction.client).catch(() => {});
+        await getUserConfig(targetMember.id, interaction.client).catch(() => {});
+
         // Try to notify the member that they have been banned (only if they're already in the server)
         if (reason && timeInMinutes) await targetMember.send(`⛔ You have been banned from **${interaction.guild.name}** for ${timeText} for the following reason: ${reason}`).catch(() => {});
         else if (reason) await targetMember.send(`⛔ You have been banned from **${interaction.guild.name}** for the following reason: ${reason}`).catch(() => {});
@@ -97,12 +101,9 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         // Log the incident to the Shibe database
         const eventID = Discord.SnowflakeUtil.generate();
 
-        // Create user data in the database if they do not exist
-        await getUserConfig(sourceMember.id).catch(() => {});
-        await getUserConfig(targetMember.id).catch(() => {});
-
         // Log the event to the database
-        await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${interaction.guild.id}', '${targetMember.id}', '${sourceMember.id}', 'BAN', '${new Date().getTime()}', '${new Date().getTime() + (timeInMinutes * 60000)}', '${sql.sanitize(reason)}', 'ACTIVE')`).catch(async (error) => {
+        const expiry = (timeInMinutes) ? new Date().getTime() + (timeInMinutes * 60000) : null;
+        await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${interaction.guild.id}', '${targetMember.id}', '${sourceMember.id}', 'BAN', '${new Date().getTime()}', '${expiry}', '${sql.sanitize(reason)}', 'ACTIVE', NULL, NULL)`).catch(async (error) => {
             AppLog.error(error, 'Logging ban to database');
             const reply = await interaction.fetchReply();
             interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident to the Shibe database due to a temporary issue. This ban will not expire!').catch(() => {});
@@ -110,7 +111,6 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
 
         // Try logging the incident to the action channel
         if (guildConfig.actionChannel) {
-
             const reportEmbed = new Discord.EmbedBuilder()
             .setAuthor({
                 name: 'Ban', 
@@ -130,12 +130,12 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
             // Log the incident
             const actionChannel = await interaction.guild.channels.fetch(guildConfig.actionChannel).catch(() => {}) as Discord.TextChannel;
             if (actionChannel) actionChannel.send({embeds: [reportEmbed]}).catch(async () => {
-                const reply = await interaction.fetchReply();
-                interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
+                const reply = await interaction.fetchReply().catch(() => {});
+                if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
             }); 
             else {
-                const reply = await interaction.fetchReply();
-                interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
+                const reply = await interaction.fetchReply().catch(() => {});
+                if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
             }
         }
         return resolve();

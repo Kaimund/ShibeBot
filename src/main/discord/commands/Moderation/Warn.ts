@@ -5,6 +5,8 @@
 */ 
 
 import Discord from 'discord.js';
+import sql from '../../../lib/SQL';
+import AppLog from '../../../lib/AppLog';
 import { Command } from '../../core/CommandManager';
 import { getGuildConfig } from '../../../lib/GuildDirectory';
 
@@ -18,17 +20,30 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         });
         if (!guildConfig) return;
 
-        // Find Member
+        // Source Member
+        const sourceMember = interaction.member as Discord.GuildMember;
+
+        // Target Member
         const targetMember = interaction.options.getMember('member') as Discord.GuildMember;
 
         // Warn Reason
         const reason = interaction.options.getString('reason');
+
+        // Log the incident to the Shibe database
+        const eventID = Discord.SnowflakeUtil.generate();
 
         // Try to warn over DM
         await targetMember.user.send(`⚠️ You were warned on **${interaction.guild.name}** for the following reason: ${reason}`)
         .then(() => interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} has been warned.`, ephemeral: true}).catch(() => {}))
         .catch(() => {
             guildConfig.actionChannel ? interaction.reply({content: ':warning: Unable to contact the target member. This incident will still be logged.', ephemeral: true}).catch(() => {}) : interaction.reply({content: ':warning: Unable to contact the target member.', ephemeral: true}).catch(() => {});
+        });
+
+        // Log the new event to the database
+        await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${interaction.guild.id}', '${targetMember.id}', '${sourceMember.id}', 'WARN', '${new Date().getTime()}', NULL, '${sql.sanitize(reason)}', 'ACTIVE', NULL, NULL)`).catch(async (error) => {
+            AppLog.error(error, 'Logging warning to database');
+            const reply = await interaction.fetchReply();
+            interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident to the Shibe database due to a temporary issue.').catch(() => {});
         });
 
         // Try logging the incident
@@ -44,17 +59,17 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
                 {name: 'Reason', value: reason}
             )
             .setTimestamp()
-            .setFooter({text: `Target User ID: ${targetMember.id}`});
+            .setFooter({text: `Event ID: ${eventID}`});
 
             // Log the incident
             const actionChannel = await interaction.guild.channels.fetch(guildConfig.actionChannel).catch(() => {}) as Discord.TextChannel;
             if (actionChannel) actionChannel.send({embeds: [reportEmbed]}).catch(async () => {
-                const reply = await interaction.fetchReply();
-                interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
+                const reply = await interaction.fetchReply().catch(() => {});
+                if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
             }); 
             else {
-                const reply = await interaction.fetchReply();
-                interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
+                const reply = await interaction.fetchReply().catch(() => {});
+                if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
             }
         
         }

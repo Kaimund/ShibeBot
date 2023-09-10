@@ -5,6 +5,8 @@
 */
 
 import Discord from 'discord.js';
+import sql from '../../../lib/SQL';
+import AppLog from '../../../lib/AppLog';
 import { Command } from '../../core/CommandManager';
 import { getGuildConfig } from '../../../lib/GuildDirectory';
 
@@ -45,6 +47,9 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
             return resolve();
         }
 
+        // Log the incident to the Shibe database
+        const eventID = Discord.SnowflakeUtil.generate();
+
         // Everything checks out. Now try to kick the member.
         if (reason) {
             await targetMember.user.send(`:x: You were kicked from **${interaction.guild.name}** for the following reason: ${reason}`).catch(() => {});
@@ -55,11 +60,18 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         }
 
         // Report the success
-        interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} was kicked from the server.`, ephemeral: true}).catch(() => {});
+        await interaction.reply({content: `:white_check_mark: ${targetMember.user.tag} was kicked from the server.`, ephemeral: true}).catch(() => {});
+
+        // Log the new event to the database
+        await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${interaction.guild.id}', '${targetMember.id}', '${sourceMember.id}', 'KICK', '${new Date().getTime()}', '', '${sql.sanitize(reason)}', 'ACTIVE', NULL, NULL)`).catch(async (error) => {
+            AppLog.error(error, 'Logging kick to database');
+            const reply = await interaction.fetchReply();
+            interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident to the Shibe database due to a temporary issue.').catch(() => {});
+        });
+        
 
         // Try logging the incident
         if (guildConfig.actionChannel) {
-
             const reportEmbed = new Discord.EmbedBuilder()
             .setAuthor({name: 'Kick', iconURL: interaction.user.avatarURL()})
             .setThumbnail(targetMember.user.avatarURL())
@@ -69,18 +81,19 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
                 {name: 'Moderator', value: `<@${interaction.user.id}> (${interaction.user.tag})`}
             )
             .setTimestamp()
-            .setFooter({text: `Target User ID: ${targetMember.id}`});
+            .setFooter({text: `Event ID: ${eventID}`});
+
             if (reason) reportEmbed.addFields({name: 'Reason', value: reason});
 
             // Log the incident
             const actionChannel = await interaction.guild.channels.fetch(guildConfig.actionChannel).catch(() => {}) as Discord.TextChannel;
             if (actionChannel) actionChannel.send({embeds: [reportEmbed]}).catch(async () => {
-                const reply = await interaction.fetchReply();
-                interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
+                const reply = await interaction.fetchReply().catch(() => {});
+                if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
             }); 
             else {
-                const reply = await interaction.fetchReply();
-                interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
+                const reply = await interaction.fetchReply().catch(() => {});
+                if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
             }
 
         }

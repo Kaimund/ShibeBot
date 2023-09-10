@@ -5,7 +5,10 @@
 */
 
 import Discord from 'discord.js';
+import sql from '../../../lib/SQL';
+import AppLog from '../../../lib/AppLog';
 import { Command } from '../../core/CommandManager';
+import { getUserConfig } from '../../../lib/UserDirectory';
 import { getGuildConfig } from '../../../lib/GuildDirectory';
 
 // Main Function
@@ -18,6 +21,8 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         });
         if (!guildConfig) return;
 
+        const sourceMember = interaction.member as Discord.GuildMember;
+
         // Target User ID
         const userToBan = interaction.options.getString('userid');
 
@@ -28,27 +33,76 @@ async function run (interaction: Discord.ChatInputCommandInteraction): Promise<v
         }
 
         // Ban Reason
-        const banReason = interaction.options.getString('reason');
+        const reason = interaction.options.getString('reason');
+
+        // Create user data in the database if they do not exist
+        const targetUserData = await getUserConfig(userToBan, interaction.client).catch((error) => {reject(error);});
+        if (!targetUserData) return;
 
         // Actually ban the member
-        if (banReason) {
-            await interaction.guild.members.ban(userToBan, {
-                reason: banReason,
-                deleteMessageSeconds: 24*60*60
-            })
-            .then(async () => {
-                await interaction.reply({content: ':white_check_mark: Ban successful.', ephemeral: true}).catch(() => {});
-            })
-            .catch(async () => await interaction.reply({content: ':warning: Ban request failed. You may not have specified a valid user ID.', ephemeral: true}).catch(() => {}));
-        } else {
-            await interaction.guild.members.ban(userToBan, {
-                deleteMessageSeconds: 24*60*60
-            })
-            .then(async () => {
-                await interaction.reply({content: ':white_check_mark: Ban successful.', ephemeral: true}).catch(() => {});
-            })
-            .catch(async () => await interaction.reply({content: ':warning: Ban request failed. You may not have specified a valid user ID.', ephemeral: true}).catch(() => {}));
-        }
+        await interaction.guild.members.ban(userToBan, {
+            reason: reason,
+            deleteMessageSeconds: 24*60*60
+        })
+        .then(async () => {
+            // The hackban was successful. Report it.
+            await interaction.reply({content: ':white_check_mark: Ban successful.', ephemeral: true}).catch(() => {});
+
+            // Log the incident to the Shibe database
+            const eventID = Discord.SnowflakeUtil.generate();
+
+            // Log the event to the database
+            await sql.query(`INSERT INTO ModActions VALUES ('${eventID}', '${interaction.guild.id}', '${sql.sanitize(userToBan)}', '${sourceMember.id}', 'BAN', '${new Date().getTime()}', '', '${sql.sanitize(reason)}', 'ACTIVE', NULL, NULL)`).catch(async (error) => {
+                AppLog.error(error, 'Logging hackban to database');
+                const reply = await interaction.fetchReply().catch(() => {});
+                if (reply) await interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident to the Shibe database due to a temporary issue.').catch(() => {});
+            });
+
+            // Try logging the incident to the action channel
+            if (guildConfig.actionChannel) {
+
+                let userText = `<@${userToBan}>`;
+                if (targetUserData) {
+                    if (targetUserData.username) {
+                        userText = `<@${userToBan}> (${targetUserData.username})`;
+                    }
+                }
+
+                const reportEmbed = new Discord.EmbedBuilder()
+                .setAuthor({
+                    name: 'Ban (Hackban)', 
+                    iconURL: interaction.user.avatarURL()
+                })
+                .setColor('#800000')
+                .addFields(
+                    {name: 'User', value: userText},
+                    {name: 'Moderator', value: `<@${interaction.user.id}> (${interaction.user.tag})`},
+                )
+                .setTimestamp()
+                .setFooter({text: `Event ID: ${eventID}`});
+                if (reason) reportEmbed.addFields({name: 'Reason', value: reason});
+                if (targetUserData) {
+                    if (targetUserData.avatarURL) reportEmbed.setThumbnail(targetUserData.avatarURL);
+                }
+
+                // Log the incident
+                const actionChannel = await interaction.guild.channels.fetch(guildConfig.actionChannel).catch(() => {}) as Discord.TextChannel;
+                if (actionChannel) actionChannel.send({embeds: [reportEmbed]}).catch(async () => {
+                    const reply = await interaction.fetchReply().catch(() => {});
+                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. Shibe does not have permission to use the logging channel.').catch(() => {});
+                });
+                else {
+                    const reply = await interaction.fetchReply().catch(() => {});
+                    if (reply) interaction.editReply(reply.content + '\n:warning: Couldn\'t log the incident. The logging channel no longer exists.').catch(() => {});
+                }
+            }
+
+        })
+        .catch(async () => {
+            // The hackban failed. Explain why this may have happened.
+            await interaction.reply({content: ':warning: Ban request failed. This may be because:\n1. You may not have specified a valid user ID.\n2. You do not have permission to ban this user.\n3. Shibe does not have permission to ban this user.', ephemeral: true}).catch(() => {});
+        });
+
         return resolve();
     });
 }
